@@ -1,0 +1,90 @@
+---
+import { icon } from '../scripts/icons.js';
+
+interface DashboardNavItem {
+  key: string;
+  icon: string;
+  label: string;
+}
+
+const {
+  role = 'customer',
+  items = [],
+  base = '/dashboard/customer',
+  helpHref = '/contact',
+  helpLabel = 'Contact support',
+} = Astro.props as {
+  role?: string;
+  items?: DashboardNavItem[];
+  base?: string;
+  helpHref?: string;
+  helpLabel?: string;
+};
+
+const roleLabel = role === 'provider' ? 'Service provider' : 'Customer account';
+---
+
+<aside class="space-y-4 lg:sticky lg:top-28" aria-label="Dashboard navigation">
+  <div class="card p-4 sm:p-5">
+    <div class="flex items-center gap-3">
+      <span
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-navy text-[13px] font-semibold text-white"
+        data-dashboard-avatar
+        aria-hidden="true">TF</span
+      >
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-[13px] font-semibold text-ink" data-dashboard-name>Loading…</p>
+        <p class="truncate text-[11px] text-mute" data-dashboard-email>Checking your session…</p>
+      </div>
+    </div>
+
+    <span class="mt-3 inline-flex items-center gap-1.5 rounded-full border border-hairline bg-canvas px-2.5 py-1 text-[10px] font-medium tracking-[0.06em] text-body uppercase">
+      {roleLabel}
+    </span>
+
+    <nav
+      class="mt-4 flex gap-1 overflow-x-auto border-t border-hairline pt-4 lg:flex-col"
+      aria-label={`${roleLabel} dashboard`}
+    >
+      {items.map((item) => (
+        <a
+          href={`${base}?tab=${item.key}`}
+          data-dashboard-tab={item.key}
+          class="flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2.5 text-[13px] font-medium whitespace-nowrap text-body transition hover:bg-surface-soft hover:text-ink aria-[current=page]:bg-navy aria-[current=page]:text-white"
+        >
+          <span aria-hidden="true"><Fragment set:html={icon(item.icon, 'h-4 w-4')} /></span>
+          {item.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="mt-4 hidden space-y-1 border-t border-hairline pt-3 lg:block">
+      <a
+        href="/"
+        class="flex items-center gap-2.5 rounded-md px-3 py-2 text-[12px] text-mute transition hover:bg-surface-soft hover:text-ink"
+      >
+        <span aria-hidden="true"><Fragment set:html={icon('home', 'h-4 w-4')} /></span>
+        Back to home
+      </a>
+      <button
+        type="button"
+        data-logout
+        class="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-[12px] text-mute transition hover:bg-danger-soft hover:text-danger-ink"
+      >
+        <span aria-hidden="true"><Fragment set:html={icon('logout', 'h-4 w-4')} /></span>
+        Log out
+      </button>
+    </div>
+  </div>
+
+  <div class="hidden rounded-xl border border-hairline bg-surface p-4 lg:block">
+    <p class="text-[11px] font-medium text-ink">Need a hand?</p>
+    <p class="mt-1 text-[11px] leading-5 text-mute">
+      Questions about a booking or your account? We are happy to help.
+    </p>
+    <a href={helpHref} class="mt-2.5 inline-flex items-center gap-1 text-[11px] font-medium text-teal-deep hover:underline">
+      {helpLabel}
+      <Fragment set:html={icon('arrowRight', 'h-3 w-3')} />
+    </a>
+  </div>
+</aside>

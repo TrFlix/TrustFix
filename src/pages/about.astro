@@ -1,0 +1,136 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { icon } from '../scripts/icons.js';
+
+const values = [
+  {
+    title: 'Trust comes first',
+    body: 'Every professional builds a profile around real experience, real services and reviews left only by customers whose bookings were completed.',
+    icon: 'shieldCheck',
+  },
+  {
+    title: 'Clear from the start',
+    body: 'Starting prices, service durations and provider details are visible before you book. No surprise charges, no hidden add-ons.',
+    icon: 'receipt',
+  },
+  {
+    title: 'Built for local experts',
+    body: 'Independent electricians, plumbers, cleaners and technicians get a simple place to be found, booked and reviewed in their own city.',
+    icon: 'users',
+  },
+];
+
+const milestones = [
+  { value: '8', label: 'Service categories' },
+  { value: '12', label: 'Cities served' },
+  { value: '350+', label: 'Verified professionals' },
+  { value: '2,000+', label: 'Services completed' },
+];
+---
+
+<Layout
+  activeNav="about"
+  title="About TrustFix"
+  description="TrustFix connects homeowners with verified local professionals for everyday repairs, maintenance and home services."
+>
+  <section class="hero-atmosphere border-b border-hairline">
+    <div class="container-x py-16 sm:py-20 lg:py-24">
+      <p class="eyebrow">About TrustFix</p>
+      <h1 class="display-1 mt-4 max-w-3xl">
+        A simpler way to find someone you can <span class="text-teal-deep">trust.</span>
+      </h1>
+      <p class="lead mt-5 max-w-2xl">
+        TrustFix is a home-services marketplace built around one idea: hiring
+        help at home should feel as clear and reliable as the work itself. We
+        connect customers with verified local professionals — and keep the whole
+        booking visible from request to completion.
+      </p>
+    </div>
+  </section>
+
+  <section class="section-pad">
+    <div class="container-x grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+      <div>
+        <p class="eyebrow">Why we exist</p>
+        <h2 class="display-2 mt-3">Home services, without the guesswork.</h2>
+      </div>
+      <div class="space-y-5 text-[15px] leading-7 text-body">
+        <p>
+          Finding a reliable electrician or plumber often means asking around,
+          comparing unclear quotes and hoping the person who arrives is the
+          person you expected. TrustFix replaces that uncertainty with
+          structured profiles, transparent starting prices and a booking you can
+          follow.
+        </p>
+        <p>
+          Customers browse services by category, compare professionals by
+          experience and reviews, and send a booking request for a time that
+          works. Providers receive requests in a dashboard and move each job
+          through a clear status flow: pending, accepted, in progress and
+          completed.
+        </p>
+        <p>
+          Reviews are tied to completed bookings, so the feedback you read comes
+          from real work rather than anonymous ratings.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-y border-hairline bg-surface">
+    <div class="section-pad container-x">
+      <p class="eyebrow">What we value</p>
+      <h2 class="display-2 mt-3 max-w-2xl">The details that make a marketplace worth using.</h2>
+
+      <div class="mt-10 grid gap-4 md:grid-cols-3">
+        {
+          values.map((value) => (
+            <div class="card p-6">
+              <span class="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline bg-canvas text-navy">
+                <Fragment set:html={icon(value.icon, 'h-5 w-5')} />
+              </span>
+              <h3 class="mt-5 text-[15px] font-semibold text-ink">{value.title}</h3>
+              <p class="mt-2 text-[13px] leading-6 text-body">{value.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section-pad">
+    <div class="container-x">
+      <dl class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {
+          milestones.map((item) => (
+            <div class="rounded-xl border border-hairline bg-surface px-5 py-6 text-center">
+              <dd class="text-2xl font-semibold tracking-[-0.03em] text-ink">{item.value}</dd>
+              <dt class="mt-1.5 text-[11px] text-mute">{item.label}</dt>
+            </div>
+          ))
+        }
+      </dl>
+
+      <div class="mt-14 grid items-center gap-8 rounded-2xl bg-navy px-6 py-10 text-white sm:px-10 lg:grid-cols-[1.4fr_0.6fr]">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+            Ready to get something fixed?
+          </h2>
+          <p class="mt-3 max-w-xl text-[14px] leading-6 text-white/70">
+            Browse services in your city, or create a customer account to track
+            every booking in one place.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-3 lg:justify-end">
+          <a href="/services" class="btn bg-white text-navy hover:bg-teal-soft">
+            Browse services
+            <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+          </a>
+          <a href="/register/customer" class="btn border border-white/20 text-white hover:bg-white/10">
+            Create account
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>

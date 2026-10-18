@@ -1,0 +1,160 @@
+---
+import Logo from './Logo.astro';
+import { icon } from '../scripts/icons.js';
+
+interface Props {
+  activeNav?: 'home' | 'services' | 'providers' | 'about' | 'contact' | '';
+}
+
+const { activeNav = '' } = Astro.props;
+
+const navItems = [
+  { key: 'home', label: 'Home', href: '/' },
+  { key: 'services', label: 'Services', href: '/services' },
+  { key: 'providers', label: 'Professionals', href: '/providers' },
+  { key: 'about', label: 'About Us', href: '/about' },
+  { key: 'contact', label: 'Contact', href: '/contact' },
+] as const;
+---
+
+<header class="sticky top-0 z-50 border-b border-hairline bg-canvas/85 backdrop-blur-md">
+  <div class="container-x">
+    <div class="flex h-16 items-center justify-between gap-4 lg:h-[72px]">
+      <div class="flex items-center gap-8">
+        <Logo />
+        <nav class="hidden items-center gap-0.5 lg:flex" aria-label="Primary">
+          {
+            navItems.map((item) => (
+              <a
+                href={item.href}
+                class="nav-link"
+                aria-current={activeNav === item.key ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+      </div>
+
+      <div class="hidden items-center gap-2 lg:flex">
+        <!-- Guest controls -->
+        <div data-auth-guest class="flex items-center gap-2">
+          <a href="/login" class="btn btn-ghost btn-sm">Log in</a>
+          <div class="relative">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm btn-square"
+              data-getstarted-toggle
+              aria-expanded="false"
+              aria-haspopup="true"
+              aria-controls="getstarted-menu"
+            >
+              Get Started
+              <span data-chevron><Fragment set:html={icon('chevronDown', 'h-3.5 w-3.5')} /></span>
+            </button>
+            <div
+              id="getstarted-menu"
+              data-getstarted-menu
+              hidden
+              class="absolute top-[calc(100%+10px)] right-0 w-72 overflow-hidden rounded-xl border border-hairline bg-surface p-1.5 shadow-float"
+            >
+              <a href="/register/customer" class="flex items-start gap-3 rounded-lg px-3 py-2.5 transition hover:bg-surface-soft">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-teal-soft text-teal-deep">
+                  <Fragment set:html={icon('user', 'h-4 w-4')} />
+                </span>
+                <span>
+                  <span class="block text-[13px] font-medium text-ink">Register as Customer</span>
+                  <span class="mt-0.5 block text-[11px] leading-4 text-mute">Book trusted help for your home.</span>
+                </span>
+              </a>
+              <a href="/register/provider" class="flex items-start gap-3 rounded-lg px-3 py-2.5 transition hover:bg-surface-soft">
+                <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-navy-tint text-navy">
+                  <Fragment set:html={icon('briefcase', 'h-4 w-4')} />
+                </span>
+                <span>
+                  <span class="block text-[13px] font-medium text-ink">Register as Provider</span>
+                  <span class="mt-0.5 block text-[11px] leading-4 text-mute">Grow your local service business.</span>
+                </span>
+              </a>
+              <div class="my-1.5 h-px bg-hairline"></div>
+              <a href="/login" class="block rounded-lg px-3 py-2 text-[12px] text-body transition hover:bg-surface-soft hover:text-ink">
+                Already have an account? <span class="font-medium text-teal-deep">Log in</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Signed-in controls -->
+        <div data-auth-user class="flex items-center gap-1.5">
+          <a href="/dashboard/customer" data-dashboard-link class="btn btn-outline btn-sm btn-square">Dashboard</a>
+          <a
+            href="/dashboard/customer"
+            data-dashboard-link
+            class="flex items-center gap-2 rounded-full border border-hairline bg-surface py-1 pr-3 pl-1 transition hover:border-hairline-strong"
+            aria-label="Open your dashboard"
+          >
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-navy-tint text-[11px] font-semibold text-navy" data-user-avatar>TF</span>
+            <span class="text-[12px] font-medium text-ink" data-user-name>Account</span>
+          </a>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm btn-icon"
+            data-logout
+            aria-label="Log out"
+            title="Log out"
+          >
+            <Fragment set:html={icon('logout', 'h-4 w-4')} />
+          </button>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm btn-square lg:hidden"
+        data-mobile-toggle
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        aria-label="Open menu"
+      >
+        <Fragment set:html={icon('menu', 'h-5 w-5')} />
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile navigation -->
+  <div id="mobile-menu" data-mobile-menu hidden class="border-t border-hairline bg-canvas lg:hidden">
+    <div class="container-x space-y-1 py-4">
+      {
+        navItems.map((item) => (
+          <a
+            href={item.href}
+            class="block rounded-lg px-3 py-2.5 text-sm text-body transition hover:bg-surface-soft hover:text-ink"
+            aria-current={activeNav === item.key ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+      <div class="my-3 h-px bg-hairline"></div>
+
+      <div data-auth-guest class="space-y-2">
+        <a href="/login" class="btn btn-outline w-full">Log in</a>
+        <a href="/register/customer" class="btn btn-primary w-full">Get started as a customer</a>
+        <a href="/register/provider" class="btn btn-ghost w-full">Join as a service provider</a>
+      </div>
+
+      <div data-auth-user class="space-y-2">
+        <div class="flex items-center gap-3 rounded-lg border border-hairline bg-surface px-3 py-3">
+          <span class="flex h-9 w-9 items-center justify-center rounded-full bg-navy-tint text-xs font-semibold text-navy" data-user-avatar>TF</span>
+          <div class="min-w-0">
+            <p class="truncate text-sm font-medium text-ink" data-user-name>Account</p>
+            <p class="text-[11px] text-mute" data-user-role>Customer</p>
+          </div>
+        </div>
+        <a href="/dashboard/customer" data-dashboard-link class="btn btn-primary w-full">Go to dashboard</a>
+        <button type="button" data-logout class="btn btn-ghost w-full">Log out</button>
+      </div>
+    </div>
+  </div>
+</header>

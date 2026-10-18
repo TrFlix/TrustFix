@@ -1,0 +1,61 @@
+---
+/**
+ * TrustFix wordmark.
+ */
+interface Props {
+  href?: string;
+  size?: 'sm' | 'md';
+  tone?: 'default' | 'light';
+  class?: string;
+}
+
+const {
+  href = '/',
+  size = 'md',
+  tone = 'default',
+  class: className = '',
+} = Astro.props;
+
+const markSize = size === 'sm' ? 'h-7 w-7' : 'h-8 w-8';
+const textSize = size === 'sm' ? 'text-[15px]' : 'text-[17px]';
+---
+
+<a
+  href={href}
+  class:list={[
+    'inline-flex items-center gap-2.5 rounded-md focus-visible:outline-offset-4',
+    className,
+  ]}
+  aria-label="TrustFix home"
+>
+  <span
+    class:list={[
+      'flex shrink-0 items-center justify-center rounded-[9px] shadow-whisper',
+      markSize,
+      tone === 'light' ? 'bg-white text-navy' : 'bg-navy text-white',
+    ]}
+  >
+    <svg
+      class="h-[68%] w-[68%]"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 2.8 20 5.8v5.7c0 5-3.4 8.3-8 9.7-4.6-1.4-8-4.7-8-9.7V5.8l8-3Z"></path>
+      <path d="m8.4 12.1 2.4 2.4 4.8-5.1" stroke="#5eead4"></path>
+    </svg>
+  </span>
+  <span
+    class:list={[
+      'font-semibold tracking-[-0.035em]',
+      textSize,
+      tone === 'light' ? 'text-white' : 'text-ink',
+    ]}
+  >
+    Trust<span class={tone === 'light' ? 'text-teal-soft' : 'text-teal-deep'}>Fix</span>
+  </span>
+</a>

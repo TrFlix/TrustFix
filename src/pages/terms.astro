@@ -1,0 +1,121 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const sections = [
+  {
+    title: '1. About TrustFix',
+    body: [
+      'TrustFix is a marketplace that connects customers with independent local service professionals. TrustFix does not perform the services itself; bookings are fulfilled by the professional you select.',
+      'By creating an account or using the platform, you agree to these terms. If you do not agree, please do not use TrustFix.',
+    ],
+  },
+  {
+    title: '2. Accounts',
+    body: [
+      'You must provide accurate information when registering and keep your login details secure. You are responsible for activity carried out through your account.',
+      'Customer and provider accounts have different permissions. You may not use an account of the other role to access features that are not intended for you.',
+    ],
+  },
+  {
+    title: '3. Bookings and provider services',
+    body: [
+      'A booking request is an offer to engage a professional. A booking becomes accepted when the provider confirms it in their dashboard.',
+      'Pricing shown on a service listing is a starting price. The final scope and cost should be confirmed with the professional before work begins.',
+      'Providers are responsible for the services they deliver, including their quality, timeliness and compliance with applicable law.',
+    ],
+  },
+  {
+    title: '4. Cancellations',
+    body: [
+      'Customers may cancel a booking while it is pending or accepted. Providers may decline a request that they cannot fulfil.',
+      'Repeated cancellations or no-shows may affect access to the platform.',
+    ],
+  },
+  {
+    title: '5. Reviews',
+    body: [
+      'Only customers with a completed booking may leave a review for that booking. Reviews must reflect genuine experience and must not contain abusive, misleading or unlawful content.',
+      'TrustFix may remove content that violates these terms.',
+    ],
+  },
+  {
+    title: '6. Acceptable use',
+    body: [
+      'You may not misuse the platform, attempt to access accounts or data that are not yours, scrape the service at scale, or use TrustFix for fraudulent or unlawful activity.',
+    ],
+  },
+  {
+    title: '7. Availability and liability',
+    body: [
+      'The platform is provided on an “as is” basis. We aim to keep it available and accurate but do not guarantee uninterrupted access or that every listing is error-free.',
+      'To the extent permitted by law, TrustFix is not liable for indirect or consequential loss arising from services arranged through the platform.',
+    ],
+  },
+  {
+    title: '8. Changes and contact',
+    body: [
+      'We may update these terms as the platform develops. Material changes will be reflected on this page.',
+      'Questions about these terms can be sent to hello@trustfix.com.',
+    ],
+  },
+];
+---
+
+<Layout
+  title="Terms of Service"
+  description="The terms that apply when you use TrustFix as a customer or service provider."
+>
+  <section class="border-b border-hairline">
+    <div class="container-x py-14 sm:py-18 lg:py-20">
+      <p class="eyebrow">Legal</p>
+      <h1 class="display-1 mt-4 max-w-3xl">Terms of Service</h1>
+      <p class="mt-4 text-[13px] text-mute">Last updated: 18 October 2026</p>
+      <p class="lead mt-4 max-w-2xl">
+        These terms explain how TrustFix works for customers and service
+        providers, and what each party is responsible for.
+      </p>
+    </div>
+  </section>
+
+  <section class="section-pad">
+    <div class="container-x grid gap-10 lg:grid-cols-[0.32fr_1fr] lg:gap-16">
+      <nav class="hidden lg:block" aria-label="On this page">
+        <p class="font-mono text-[10px] font-medium tracking-[0.12em] text-mute uppercase">On this page</p>
+        <ol class="mt-4 space-y-2.5">
+          {
+            sections.map((section, index) => (
+              <li>
+                <a href={`#section-${index + 1}`} class="text-[12.5px] leading-5 text-body transition hover:text-teal-deep">
+                  {section.title}
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+
+      <div class="space-y-9">
+        {
+          sections.map((section, index) => (
+            <section id={`section-${index + 1}`} class="scroll-mt-28">
+              <h2 class="text-[15px] font-semibold tracking-[-0.01em] text-ink">{section.title}</h2>
+              <div class="mt-3 space-y-3">
+                {section.body.map((paragraph) => (
+                  <p class="text-[13.5px] leading-7 text-body">{paragraph}</p>
+                ))}
+              </div>
+            </section>
+          ))
+        }
+
+        <div class="rounded-xl border border-hairline bg-surface p-5">
+          <p class="text-[13px] leading-6 text-body">
+            This page is provided for a college mini project and is not legal
+            advice. For questions, contact
+            <a href="mailto:hello@trustfix.com" class="font-medium text-teal-deep hover:underline">hello@trustfix.com</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>

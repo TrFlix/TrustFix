@@ -1,0 +1,319 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AuthShell from '../../components/AuthShell.astro';
+import { CATEGORIES } from '../../scripts/api.js';
+import { icon } from '../../scripts/icons.js';
+
+const sidePoints = [
+  {
+    title: 'Reach local customers',
+    body: 'Appear in searches for your service category and city.',
+  },
+  {
+    title: 'Manage your own work',
+    body: 'Accept or decline requests and update job status from one dashboard.',
+  },
+  {
+    title: 'Build a trusted profile',
+    body: 'Show your experience, services and verified customer reviews.',
+  },
+];
+---
+
+<Layout
+  title="Provider registration"
+  description="Join TrustFix as a verified service provider, list your services and receive customer booking requests."
+  hideFooter
+>
+  <AuthShell
+    eyebrow="Provider account"
+    title="Join TrustFix as a professional."
+    subtitle="Create your profile so customers can find you, understand your experience and request your services."
+    sideTitle="Your skills deserve a better shopfront."
+    sideText="TrustFix gives local professionals a clean profile, simple service listings and a dashboard for every customer request — without the paperwork."
+    sidePoints={sidePoints}
+    sideNote="Free to join. There is no payment gateway in this project; customers pay you directly."
+  >
+    <form id="provider-form" class="space-y-4" novalidate>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div data-field>
+          <label for="provider-name" class="label">Full name</label>
+          <input id="provider-name" name="full_name" type="text" class="input" placeholder="e.g. Rahul Verma" autocomplete="name" required />
+          <p class="field-error" id="provider-name-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-email" class="label">Email address</label>
+          <input id="provider-email" name="email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required />
+          <p class="field-error" id="provider-email-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-phone" class="label">Phone number</label>
+          <input id="provider-phone" name="phone" type="tel" class="input" placeholder="98765 43210" autocomplete="tel" required />
+          <p class="field-error" id="provider-phone-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-city" class="label">City</label>
+          <input id="provider-city" name="city" type="text" class="input" placeholder="e.g. Bengaluru" autocomplete="address-level2" required />
+          <p class="field-error" id="provider-city-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-category" class="label">Service category</label>
+          <select id="provider-category" name="category" class="input" required>
+            <option value="">Select your trade</option>
+            {CATEGORIES.map((category) => (
+              <option value={category.slug}>{category.name}</option>
+            ))}
+          </select>
+          <p class="field-error" id="provider-category-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-experience" class="label">Years of experience</label>
+          <input id="provider-experience" name="experience_years" type="number" class="input" min="0" max="60" step="1" placeholder="e.g. 6" inputmode="numeric" required />
+          <p class="field-error" id="provider-experience-error" hidden></p>
+        </div>
+      </div>
+
+      <div data-field>
+        <label for="provider-address" class="label">Address</label>
+        <textarea
+          id="provider-address"
+          name="address"
+          class="input min-h-20"
+          rows="2"
+          placeholder="Street, area, city"
+          autocomplete="street-address"
+          required
+        ></textarea>
+        <p class="field-hint">Only your city is shown publicly. Your full address stays private.</p>
+        <p class="field-error" id="provider-address-error" hidden></p>
+      </div>
+
+      <div data-field>
+        <div class="flex items-center justify-between">
+          <label for="provider-description" class="label mb-0">Professional description</label>
+          <span class="text-[11px] text-mute"><span id="description-count">0</span>/600</span>
+        </div>
+        <textarea
+          id="provider-description"
+          name="description"
+          class="input mt-1.5 min-h-28"
+          rows="4"
+          maxlength="600"
+          placeholder="Describe your skills, the work you do and what customers can expect."
+          required
+        ></textarea>
+        <p class="field-hint">This appears on your public profile. Be specific and honest.</p>
+        <p class="field-error" id="provider-description-error" hidden></p>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div data-field>
+          <label for="provider-password" class="label">Password</label>
+          <div class="relative">
+            <input id="provider-password" name="password" type="password" class="input pr-11" placeholder="At least 8 characters" autocomplete="new-password" required />
+            <button type="button" class="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute transition hover:bg-surface-soft hover:text-ink" data-toggle-password="provider-password" aria-label="Show password">
+              <Fragment set:html={icon('eye', 'h-4 w-4')} />
+            </button>
+          </div>
+          <div class="mt-2 flex gap-1" aria-hidden="true">
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+          </div>
+          <p class="mt-1.5 text-[11px] text-mute" id="password-strength" aria-live="polite">
+            Use 8+ characters with a number and a symbol.
+          </p>
+          <p class="field-error" id="provider-password-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="provider-confirm" class="label">Confirm password</label>
+          <input id="provider-confirm" name="confirm_password" type="password" class="input" placeholder="Re-enter your password" autocomplete="new-password" required />
+          <p class="field-error" id="provider-confirm-error" hidden></p>
+        </div>
+      </div>
+
+      <div data-field>
+        <label class="flex items-start gap-2.5 text-[12px] leading-5 text-body">
+          <input id="provider-terms" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 accent-teal" />
+          <span>
+            I agree to the
+            <a href="/terms" class="font-medium text-teal-deep hover:underline">Terms of Service</a>
+            and confirm that the information I provide is accurate.
+          </span>
+        </label>
+        <p class="field-error" id="provider-terms-error" hidden></p>
+      </div>
+
+      <div data-form-alert hidden></div>
+
+      <button id="provider-submit" type="submit" class="btn btn-primary w-full">
+        Create provider account
+        <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+      </button>
+
+      <p class="text-center text-[12px] text-mute">
+        Already have an account?
+        <a href="/login" class="font-medium text-teal-deep hover:underline">Log in</a>
+      </p>
+    </form>
+  </AuthShell>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    dashboardFor,
+    fetchMe,
+    getToken,
+    setSession,
+  } from '../../scripts/api.js';
+  import { setLoading, showToast } from '../../scripts/ui.js';
+  import {
+    clearFormErrors,
+    clearFieldError,
+    setFieldError,
+    showFormAlert,
+    validateFields,
+  } from '../../scripts/forms.js';
+
+  const form = document.getElementById('provider-form');
+  const name = document.getElementById('provider-name');
+  const email = document.getElementById('provider-email');
+  const phone = document.getElementById('provider-phone');
+  const city = document.getElementById('provider-city');
+  const category = document.getElementById('provider-category');
+  const experience = document.getElementById('provider-experience');
+  const address = document.getElementById('provider-address');
+  const description = document.getElementById('provider-description');
+  const password = document.getElementById('provider-password');
+  const confirm = document.getElementById('provider-confirm');
+  const terms = document.getElementById('provider-terms');
+  const submit = document.getElementById('provider-submit');
+  const strengthLabel = document.getElementById('password-strength');
+  const strengthBars = [...document.querySelectorAll('[data-strength-bar]')];
+  const descriptionCount = document.getElementById('description-count');
+
+  if (getToken()) {
+    fetchMe()
+      .then((user) => window.location.replace(dashboardFor(user.role)))
+      .catch(() => {
+        /* stale token — allow registration */
+      });
+  }
+
+  description.addEventListener('input', () => {
+    descriptionCount.textContent = String(description.value.length);
+    clearFieldError(description);
+  });
+
+  function scorePassword(value) {
+    let score = 0;
+    if (value.length >= 8) score += 1;
+    if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
+    if (/\d/.test(value)) score += 1;
+    if (/[^A-Za-z0-9]/.test(value)) score += 1;
+    return score;
+  }
+
+  password.addEventListener('input', () => {
+    const value = password.value;
+    const score = value ? scorePassword(value) : 0;
+    const colors = ['bg-hairline', 'bg-danger', 'bg-amber', 'bg-teal', 'bg-teal'];
+
+    strengthBars.forEach((bar, index) => {
+      bar.className = `h-1 flex-1 rounded-full ${index < score ? colors[score] : 'bg-hairline'}`;
+    });
+
+    strengthLabel.textContent = !value
+      ? 'Use 8+ characters with a number and a symbol.'
+      : score <= 1
+        ? 'Weak — add length, numbers or symbols.'
+        : score === 2
+          ? 'Fair — a longer password would be stronger.'
+          : score === 3
+            ? 'Good password.'
+            : 'Strong password.';
+
+    clearFieldError(password);
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFormErrors(form);
+
+    const experienceValue = Number(experience.value);
+    const valid = validateFields([
+      { input: name, label: 'Full name', required: true, min: 2 },
+      { input: email, label: 'Email', required: true, email: true },
+      { input: phone, label: 'Phone number', required: true, phone: true },
+      { input: city, label: 'City', required: true },
+      { input: category, label: 'Service category', required: true },
+      {
+        input: experience,
+        label: 'Experience',
+        required: true,
+        custom: () =>
+          !Number.isFinite(experienceValue) || experienceValue < 0 || experienceValue > 60
+            ? 'Enter experience between 0 and 60 years.'
+            : '',
+      },
+      { input: address, label: 'Address', required: true, min: 10 },
+      { input: description, label: 'Professional description', required: true, min: 40 },
+      { input: password, label: 'Password', required: true, min: 8 },
+      {
+        input: confirm,
+        label: 'Confirm password',
+        required: true,
+        match: { value: password.value },
+        message: 'Passwords do not match.',
+      },
+    ]);
+
+    if (!terms.checked) {
+      setFieldError(terms, 'Please accept the terms to continue.');
+      if (valid) terms.focus();
+    }
+
+    if (!valid || !terms.checked) return;
+
+    setLoading(submit, true, 'Creating profile…');
+
+    try {
+      const data = await apiFetch('/auth/register/provider', {
+        method: 'POST',
+        auth: false,
+        body: {
+          full_name: name.value.trim(),
+          email: email.value.trim(),
+          phone: phone.value.trim(),
+          city: city.value.trim(),
+          category: category.value,
+          experience_years: experienceValue,
+          address: address.value.trim(),
+          description: description.value.trim(),
+          password: password.value,
+        },
+      });
+
+      setSession(data.token, data.user);
+      showToast('Your provider account is ready. Add your first service next.', 'success');
+      window.location.assign(dashboardFor('provider'));
+    } catch (error) {
+      if (error.status === 409) {
+        setFieldError(email, 'An account with this email already exists.');
+        email.focus();
+      } else {
+        showFormAlert(form, error.message);
+      }
+      setLoading(submit, false);
+    }
+  });
+</script>

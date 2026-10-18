@@ -1,0 +1,238 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AuthShell from '../components/AuthShell.astro';
+import { icon } from '../scripts/icons.js';
+---
+
+<Layout
+  title="Log in"
+  description="Log in to your TrustFix customer or service provider account."
+  hideFooter
+>
+  <AuthShell
+    eyebrow="Welcome back"
+    title="Log in to your TrustFix account."
+    subtitle="One login for customers and service providers. We will take you to the right dashboard."
+  >
+    <form id="login-form" class="space-y-4" novalidate>
+      <div data-field>
+        <label for="login-email" class="label">Email address</label>
+        <div class="relative">
+          <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">
+            <Fragment set:html={icon('mail', 'h-4 w-4')} />
+          </span>
+          <input
+            id="login-email"
+            name="email"
+            type="email"
+            class="input pl-9"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+        </div>
+        <p class="field-error" id="login-email-error" hidden></p>
+      </div>
+
+      <div data-field>
+        <div class="mb-1.5 flex items-center justify-between">
+          <label for="login-password" class="label mb-0">Password</label>
+          <span class="text-[11px] text-mute">At least 8 characters</span>
+        </div>
+        <div class="relative">
+          <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">
+            <Fragment set:html={icon('lock', 'h-4 w-4')} />
+          </span>
+          <input
+            id="login-password"
+            name="password"
+            type="password"
+            class="input pr-11 pl-9"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            required
+          />
+          <button
+            type="button"
+            class="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute transition hover:bg-surface-soft hover:text-ink"
+            data-toggle-password="login-password"
+            aria-label="Show password"
+          >
+            <Fragment set:html={icon('eye', 'h-4 w-4')} />
+          </button>
+        </div>
+        <p class="field-error" id="login-password-error" hidden></p>
+      </div>
+
+      <div data-form-alert hidden></div>
+
+      <button id="login-submit" type="submit" class="btn btn-primary w-full">
+        Log in
+        <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+      </button>
+
+      <p class="text-center text-[12px] text-mute">
+        New to TrustFix?
+        <a href="/register/customer" class="font-medium text-teal-deep hover:underline">Create a customer account</a>
+        or
+        <a href="/register/provider" class="font-medium text-teal-deep hover:underline">join as a provider</a>.
+      </p>
+    </form>
+
+    <Fragment slot="side">
+      <p class="font-mono text-[10px] font-medium tracking-[0.14em] text-teal-soft uppercase">
+        Mini project demo
+      </p>
+      <h2 class="mt-4 text-2xl leading-tight font-semibold tracking-[-0.03em] text-white">
+        Try both sides of the marketplace.
+      </h2>
+      <p class="mt-3 text-[13px] leading-6 text-white/65">
+        Use a seeded demo account to explore the customer booking flow or the
+        provider request dashboard.
+      </p>
+
+      <div class="mt-7 space-y-3">
+        <div class="rounded-xl border border-white/12 bg-white/[0.04] p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[12px] font-medium text-white">Customer demo</p>
+              <p class="mt-1 font-mono text-[11px] text-white/55">customer@trustfix.com</p>
+              <p class="font-mono text-[11px] text-white/55">Password123</p>
+            </div>
+            <span class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-teal-soft">
+              <Fragment set:html={icon('user', 'h-4 w-4')} />
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn mt-3 h-9 w-full border border-white/15 bg-white/5 text-[12px] text-white hover:bg-white/10"
+            data-demo
+            data-demo-email="customer@trustfix.com"
+            data-demo-password="Password123"
+          >
+            Fill customer credentials
+          </button>
+        </div>
+
+        <div class="rounded-xl border border-white/12 bg-white/[0.04] p-4">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-[12px] font-medium text-white">Provider demo</p>
+              <p class="mt-1 font-mono text-[11px] text-white/55">provider@trustfix.com</p>
+              <p class="font-mono text-[11px] text-white/55">Password123</p>
+            </div>
+            <span class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-teal-soft">
+              <Fragment set:html={icon('briefcase', 'h-4 w-4')} />
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn mt-3 h-9 w-full border border-white/15 bg-white/5 text-[12px] text-white hover:bg-white/10"
+            data-demo
+            data-demo-email="provider@trustfix.com"
+            data-demo-password="Password123"
+          >
+            Fill provider credentials
+          </button>
+        </div>
+      </div>
+
+      <p class="mt-auto pt-8 text-[11px] leading-5 text-white/40">
+        Demo accounts are created by the seed script in
+        database/trustfix.sql. Do not use demo passwords in a real deployment.
+      </p>
+    </Fragment>
+  </AuthShell>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    dashboardFor,
+    fetchMe,
+    getToken,
+    setSession,
+  } from '../scripts/api.js';
+  import { showToast, setLoading } from '../scripts/ui.js';
+  import {
+    clearFormErrors,
+    validateFields,
+    showFormAlert,
+    hideFormAlert,
+  } from '../scripts/forms.js';
+
+  const form = document.getElementById('login-form');
+  const email = document.getElementById('login-email');
+  const password = document.getElementById('login-password');
+  const submit = document.getElementById('login-submit');
+
+  function safeNext(user) {
+    const next = new URLSearchParams(window.location.search).get('next');
+    if (!next || !next.startsWith('/') || next.startsWith('//')) {
+      return dashboardFor(user.role);
+    }
+    if (user.role === 'customer' && next.startsWith('/dashboard/provider')) {
+      return dashboardFor('customer');
+    }
+    if (user.role === 'provider' && next.startsWith('/dashboard/customer')) {
+      return dashboardFor('provider');
+    }
+    return next;
+  }
+
+  // Already signed in? Go straight to the correct dashboard.
+  if (getToken()) {
+    fetchMe()
+      .then((user) => window.location.replace(safeNext(user)))
+      .catch(() => {
+        /* stale token — stay on the login page */
+      });
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFormErrors(form);
+
+    const valid = validateFields([
+      { input: email, label: 'Email', required: true, email: true },
+      { input: password, label: 'Password', required: true },
+    ]);
+    if (!valid) return;
+
+    setLoading(submit, true, 'Logging in…');
+
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        auth: false,
+        body: {
+          email: email.value.trim(),
+          password: password.value,
+        },
+      });
+
+      setSession(data.token, data.user);
+      showToast(`Welcome back, ${data.user.full_name.split(' ')[0]}.`, 'success');
+      window.location.assign(safeNext(data.user));
+    } catch (error) {
+      showFormAlert(
+        form,
+        error.status === 401
+          ? 'Email or password is incorrect. Please try again.'
+          : error.message,
+      );
+      setLoading(submit, false);
+    }
+  });
+
+  document.querySelectorAll('[data-demo]').forEach((button) => {
+    button.addEventListener('click', () => {
+      email.value = button.dataset.demoEmail;
+      password.value = button.dataset.demoPassword;
+      hideFormAlert(form);
+      submit.focus();
+      showToast('Demo credentials filled in. Press Log in to continue.', 'info');
+    });
+  });
+</script>

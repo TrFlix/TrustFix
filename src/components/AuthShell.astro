@@ -1,0 +1,91 @@
+---
+import { icon } from '../scripts/icons.js';
+
+interface Point {
+  title: string;
+  body: string;
+}
+
+interface Props {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  sideTitle?: string;
+  sideText?: string;
+  sidePoints?: Point[];
+  sideNote?: string;
+}
+
+const {
+  eyebrow,
+  title,
+  subtitle,
+  sideTitle = 'Trusted home services, start to finish.',
+  sideText = 'Join thousands of homeowners using TrustFix to find reliable local professionals.',
+  sidePoints = [],
+  sideNote = '',
+} = Astro.props;
+
+const hasSideSlot = Astro.slots.has('side');
+---
+
+<section class="relative overflow-hidden py-10 sm:py-14 lg:py-16">
+  <div class="pointer-events-none absolute inset-0 hero-grid opacity-40"></div>
+
+  <div class="container-x relative">
+    <div class="mx-auto grid max-w-5xl overflow-hidden rounded-2xl border border-hairline bg-surface shadow-lift lg:grid-cols-[1.08fr_0.92fr]">
+      <div class="p-6 sm:p-10">
+        <p class="eyebrow">{eyebrow}</p>
+        <h1 class="mt-3 text-[1.9rem] leading-[1.1] font-semibold tracking-[-0.035em] text-ink sm:text-[2.2rem]">
+          {title}
+        </h1>
+        <p class="mt-3 text-[14px] leading-6 text-body">{subtitle}</p>
+
+        <div class="mt-8">
+          <slot />
+        </div>
+      </div>
+
+      <aside class="relative overflow-hidden bg-navy p-6 text-white sm:p-10">
+        <div class="pointer-events-none absolute inset-0 opacity-[0.14]" style="background-image: radial-gradient(circle, rgba(255,255,255,.6) 1px, transparent 1px); background-size: 18px 18px;"></div>
+        <div class="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-teal/25 blur-3xl"></div>
+
+        <div class="relative flex h-full flex-col">
+          {
+            hasSideSlot ? (
+              <slot name="side" />
+            ) : (
+              <>
+                <p class="font-mono text-[10px] font-medium tracking-[0.14em] text-teal-soft uppercase">
+                  Why TrustFix
+                </p>
+                <h2 class="mt-4 text-2xl leading-tight font-semibold tracking-[-0.03em] text-white">
+                  {sideTitle}
+                </h2>
+                <p class="mt-3 text-[13px] leading-6 text-white/65">{sideText}</p>
+
+                <ul class="mt-8 space-y-5">
+                  {sidePoints.map((point) => (
+                    <li class="flex gap-3">
+                      <span class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-teal-soft">
+                        <Fragment set:html={icon('check', 'h-3.5 w-3.5')} />
+                      </span>
+                      <div>
+                        <p class="text-[13px] font-medium text-white">{point.title}</p>
+                        <p class="mt-0.5 text-[12px] leading-5 text-white/55">{point.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                {sideNote && (
+                  <p class="mt-auto pt-10 text-[11px] leading-5 text-white/40">{sideNote}</p>
+                )}
+              </>
+            )
+          }
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>

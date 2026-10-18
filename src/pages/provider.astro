@@ -1,0 +1,311 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { icon } from '../scripts/icons.js';
+---
+
+<Layout
+  title="Professional profile"
+  description="View a TrustFix professional's experience, services, starting prices and verified customer reviews."
+>
+  <div class="container-x py-8 sm:py-10">
+    <nav class="flex flex-wrap items-center gap-1.5 text-[12px] text-mute" aria-label="Breadcrumb">
+      <a href="/" class="transition hover:text-ink">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/providers" class="transition hover:text-ink">Professionals</a>
+      <span aria-hidden="true">/</span>
+      <span id="provider-breadcrumb" class="text-body">Profile</span>
+    </nav>
+
+    <div id="provider-layout" aria-live="polite" aria-busy="true">
+      <!-- loading skeleton -->
+      <div class="mt-6 card overflow-hidden">
+        <div class="h-28 border-b border-hairline bg-surface-soft"></div>
+        <div class="px-6 pb-6">
+          <div class="-mt-10 flex items-end gap-4">
+            <div class="skeleton h-24 w-24 rounded-full border-4 border-surface"></div>
+            <div class="flex-1 space-y-2 pb-2">
+              <div class="skeleton h-5 w-48"></div>
+              <div class="skeleton h-3 w-64"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-6 grid gap-6 lg:grid-cols-[1.5fr_0.8fr]">
+        <div class="space-y-4">
+          <div class="card space-y-3 p-6">
+            <div class="skeleton h-4 w-32"></div>
+            <div class="skeleton h-3 w-full"></div>
+            <div class="skeleton h-3 w-11/12"></div>
+            <div class="skeleton h-3 w-2/3"></div>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="skeleton h-40 rounded-xl"></div>
+            <div class="skeleton h-40 rounded-xl"></div>
+          </div>
+        </div>
+        <div class="card space-y-3 p-6">
+          <div class="skeleton h-8 w-32"></div>
+          <div class="skeleton h-10 w-full rounded-full"></div>
+          <div class="skeleton h-24 w-full rounded-lg"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    escapeHtml,
+    formatCurrency,
+    formatDate,
+    formatDuration,
+    formatNumber,
+  } from '../scripts/api.js';
+  import {
+    avatarHtml,
+    emptyState,
+    errorState,
+    serviceCard,
+  } from '../scripts/render.js';
+  import { categoryIcon, icon, starIcon } from '../scripts/icons.js';
+
+  const host = document.getElementById('provider-layout');
+  const breadcrumb = document.getElementById('provider-breadcrumb');
+  const id = Number(new URLSearchParams(window.location.search).get('id'));
+
+  const initials = (name = '') =>
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() || '')
+      .join('') || 'TF';
+
+  function renderReviews(reviews) {
+    if (!reviews.length) {
+      return `<div class="card mt-6 p-6">
+        <h2 class="text-base font-semibold text-ink">Reviews</h2>
+        <div class="mt-6 py-6 text-center">
+          <span class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-surface-soft text-mute">${icon('message', 'h-5 w-5')}</span>
+          <p class="mt-4 text-sm font-medium text-ink">No reviews yet</p>
+          <p class="mt-1 text-[12px] text-body">Verified reviews appear after a completed booking.</p>
+        </div>
+      </div>`;
+    }
+
+    return `<div class="card mt-6 p-6">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <h2 class="text-base font-semibold text-ink">Customer reviews</h2>
+        <p class="text-[11px] text-mute">${reviews.length} recent review${reviews.length === 1 ? '' : 's'}</p>
+      </div>
+      <div class="mt-2 divide-y divide-hairline">
+        ${reviews
+          .map(
+            (review) => `<article class="py-5">
+              <div class="flex items-start gap-3">
+                ${avatarHtml(review.customer_name, 'h-10 w-10 text-xs')}
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="text-[13px] font-medium text-ink">${escapeHtml(review.customer_name)}</p>
+                    <span class="text-[11px] text-mute">${formatDate(review.created_at)}</span>
+                  </div>
+                  <div class="mt-1 flex items-center gap-0.5" aria-label="${Number(review.rating)} out of 5 stars">
+                    ${Array.from({ length: 5 })
+                      .map(
+                        (_, index) =>
+                          `<span class="${index < Number(review.rating) ? 'text-amber' : 'text-hairline-strong'}">${starIcon('h-3.5 w-3.5')}</span>`,
+                      )
+                      .join('')}
+                  </div>
+                  <p class="mt-2 text-[13px] leading-6 text-body">${escapeHtml(review.comment || '')}</p>
+                  <p class="mt-1.5 text-[11px] text-mute">${escapeHtml(review.service_title || '')}</p>
+                </div>
+              </div>
+            </article>`,
+          )
+          .join('')}
+      </div>
+    </div>`;
+  }
+
+  function render({ provider, services, reviews, stats }) {
+    const rating = Number(provider.rating) || 0;
+    const reviewCount = Number(provider.review_count) || 0;
+
+    document.title = `${provider.full_name} — TrustFix`;
+    breadcrumb.textContent = provider.full_name;
+
+    host.innerHTML = `
+      <!-- Profile header -->
+      <div class="card mt-6 overflow-hidden">
+        <div class="relative h-28 border-b border-hairline bg-canvas sm:h-32">
+          <div class="absolute inset-0 opacity-60" style="background-image: radial-gradient(circle, rgba(11,31,58,.1) 1px, transparent 1px); background-size: 16px 16px;"></div>
+          <div class="absolute -right-10 -bottom-16 text-teal-soft/70" aria-hidden="true">${categoryIcon(provider.category_slug, 'h-44 w-44')}</div>
+        </div>
+        <div class="px-5 pb-6 sm:px-7">
+          <div class="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div class="flex items-end gap-4">
+              <span class="relative flex h-24 w-24 items-center justify-center rounded-full border-4 border-surface bg-navy-tint text-2xl font-semibold text-navy shadow-whisper" aria-hidden="true">
+                ${escapeHtml(initials(provider.full_name))}
+                <span class="absolute right-1 bottom-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-teal text-white" title="Verified profile">
+                  ${icon('check', 'h-3 w-3')}
+                </span>
+              </span>
+              <div class="pb-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h1 class="text-xl font-semibold tracking-[-0.02em] text-ink sm:text-2xl">${escapeHtml(provider.full_name)}</h1>
+                  <span class="badge border-teal-line bg-teal-soft text-teal-deep">Verified</span>
+                </div>
+                <p class="mt-1 text-[13px] text-body">${escapeHtml(provider.category_name)} · ${escapeHtml(provider.city)}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-mute">
+                  <span class="inline-flex items-center gap-1.5 text-amber">${starIcon('h-3.5 w-3.5')} <span class="font-medium text-ink">${rating ? rating.toFixed(1) : 'New'}</span> <span>(${reviewCount} review${reviewCount === 1 ? '' : 's'})</span></span>
+                  <span>${Number(provider.experience_years) || 0} years experience</span>
+                  <span>Member since ${formatDate(provider.created_at, { month: 'short', year: 'numeric', day: undefined })}</span>
+                </div>
+              </div>
+            </div>
+            <a href="/book?provider_id=${provider.id}" class="btn btn-primary shrink-0">
+              Request service ${icon('arrowRight', 'h-4 w-4')}
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-6 lg:grid-cols-[1.5fr_0.8fr] lg:items-start">
+        <div>
+          <div class="card p-6">
+            <p class="eyebrow">About</p>
+            <h2 class="mt-2 text-base font-semibold text-ink">Professional background</h2>
+            <p class="mt-3 text-[14px] leading-7 text-body">${escapeHtml(provider.description || 'This professional has not added a description yet.')}</p>
+
+            <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div class="rounded-lg border border-hairline bg-canvas/70 p-3">
+                <p class="text-lg font-semibold tracking-[-0.02em] text-ink">${formatNumber(stats.completed)}</p>
+                <p class="mt-0.5 text-[10px] text-mute">Jobs completed</p>
+              </div>
+              <div class="rounded-lg border border-hairline bg-canvas/70 p-3">
+                <p class="text-lg font-semibold tracking-[-0.02em] text-ink">${services.length}</p>
+                <p class="mt-0.5 text-[10px] text-mute">Services listed</p>
+              </div>
+              <div class="rounded-lg border border-hairline bg-canvas/70 p-3">
+                <p class="text-lg font-semibold tracking-[-0.02em] text-ink">${Number(provider.experience_years) || 0}</p>
+                <p class="mt-0.5 text-[10px] text-mute">Years experience</p>
+              </div>
+              <div class="rounded-lg border border-hairline bg-canvas/70 p-3">
+                <p class="text-lg font-semibold tracking-[-0.02em] text-ink">${rating ? rating.toFixed(1) : '—'}</p>
+                <p class="mt-0.5 text-[10px] text-mute">Average rating</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <div class="flex items-end justify-between gap-3">
+              <div>
+                <p class="eyebrow">Services</p>
+                <h2 class="mt-2 text-base font-semibold text-ink">What ${escapeHtml(provider.full_name.split(' ')[0])} offers</h2>
+              </div>
+              <p class="text-[11px] text-mute">${services.length} service${services.length === 1 ? '' : 's'}</p>
+            </div>
+
+            <div class="mt-4 grid gap-4 sm:grid-cols-2">
+              ${
+                services.length
+                  ? services
+                      .map(
+                        (service) => `<article class="card card-hover flex flex-col p-5">
+                          <div class="flex items-start justify-between gap-3">
+                            <h3 class="text-[14px] font-semibold text-ink">${escapeHtml(service.title)}</h3>
+                            <p class="shrink-0 text-sm font-semibold text-ink">${formatCurrency(service.price)}</p>
+                          </div>
+                          <p class="mt-2 line-clamp-2 text-[12px] leading-5 text-body">${escapeHtml(service.description || '')}</p>
+                          <div class="mt-auto flex items-center justify-between gap-3 border-t border-hairline pt-3.5 mt-4">
+                            <span class="inline-flex items-center gap-1.5 text-[11px] text-mute">${icon('clock', 'h-3.5 w-3.5')} ${formatDuration(service.duration_minutes)}</span>
+                            <a href="/book?service_id=${service.id}" class="btn btn-outline btn-sm">Request</a>
+                          </div>
+                        </article>`,
+                      )
+                      .join('')
+                  : emptyState(
+                      'No services listed yet',
+                      'This professional has not added any services. You can still send a general request.',
+                      `<a href="/book?provider_id=${provider.id}" class="btn btn-primary btn-sm">Request service</a>`,
+                    )
+              }
+            </div>
+          </div>
+
+          ${renderReviews(reviews)}
+        </div>
+
+        <aside class="space-y-4 lg:sticky lg:top-28">
+          <div class="card p-6">
+            <p class="text-[10px] font-medium tracking-[0.1em] text-mute uppercase">Starting price</p>
+            <p class="mt-1 text-2xl font-semibold tracking-[-0.03em] text-ink">${formatCurrency(provider.starting_price)}</p>
+            <p class="mt-1 text-[11px] text-mute">Across ${services.length} listed service${services.length === 1 ? '' : 's'}</p>
+
+            <a href="/book?provider_id=${provider.id}" class="btn btn-primary mt-4 w-full">Request service ${icon('arrowRight', 'h-4 w-4')}</a>
+
+            <ul class="mt-5 space-y-3 border-t border-hairline pt-5 text-[12px] text-body">
+              <li class="flex items-center justify-between gap-2"><span class="text-mute">Category</span><span class="font-medium text-ink">${escapeHtml(provider.category_name)}</span></li>
+              <li class="flex items-center justify-between gap-2"><span class="text-mute">Location</span><span class="font-medium text-ink">${escapeHtml(provider.city)}</span></li>
+              <li class="flex items-center justify-between gap-2"><span class="text-mute">Experience</span><span class="font-medium text-ink">${Number(provider.experience_years) || 0} years</span></li>
+              <li class="flex items-center justify-between gap-2"><span class="text-mute">Rating</span><span class="font-medium text-ink">${rating ? `${rating.toFixed(1)} / 5` : 'New'}</span></li>
+            </ul>
+          </div>
+
+          <div class="rounded-xl border border-teal-line bg-teal-soft/60 p-5">
+            <div class="flex items-start gap-3">
+              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface text-teal-deep">${icon('shieldCheck', 'h-4.5 w-4.5')}</span>
+              <div>
+                <p class="text-[13px] font-medium text-ink">How TrustFix verifies</p>
+                <p class="mt-1 text-[12px] leading-5 text-body">Profiles are checked for identity and experience before they can receive booking requests.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-5">
+            <p class="text-[10px] font-medium tracking-[0.1em] text-mute uppercase">Need help choosing?</p>
+            <p class="mt-2 text-[12px] leading-5 text-body">Browse all professionals or compare services in this category.</p>
+            <div class="mt-4 flex flex-col gap-2">
+              <a href="/providers?category=${provider.category_slug}" class="btn btn-outline btn-sm w-full">Similar professionals</a>
+              <a href="/services?category=${provider.category_slug}" class="btn btn-ghost btn-sm w-full">Compare services</a>
+            </div>
+          </div>
+        </aside>
+      </div>`;
+
+    host.setAttribute('aria-busy', 'false');
+  }
+
+  async function load() {
+    if (!Number.isFinite(id) || id <= 0) {
+      host.innerHTML = `<div class="mt-6">${emptyState(
+        'Professional not found',
+        'This profile does not exist or may have been removed.',
+        '<a href="/providers" class="btn btn-primary btn-sm">Browse professionals</a>',
+      )}</div>`;
+      host.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    try {
+      const data = await apiFetch(`/providers/${id}`, { auth: false });
+      render(data);
+    } catch (error) {
+      host.innerHTML = `<div class="mt-6">${
+        error.status === 404
+          ? emptyState(
+              'Professional not found',
+              'This profile may have been removed or is no longer available.',
+              '<a href="/providers" class="btn btn-primary btn-sm">Browse professionals</a>',
+            )
+          : errorState(error.message)
+      }</div>`;
+      host.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  load();
+</script>

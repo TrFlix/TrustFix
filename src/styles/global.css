@@ -1,0 +1,376 @@
+@import "tailwindcss";
+
+/* --------------------------------------------------------------------------
+   TrustFix design tokens
+   A restrained navy / teal / off-white system inspired by the Vercel analysis
+   in DESIGN.md, adapted to the TrustFix brand direction.
+   -------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-canvas: #fafaf9;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f4f6f7;
+  --color-surface-sunken: #eef1f3;
+
+  --color-ink: #14181f;
+  --color-body: #4d5665;
+  --color-mute: #7b8494;
+  --color-faint: #9aa2b1;
+
+  --color-hairline: #e7e9ee;
+  --color-hairline-strong: #d8dce3;
+
+  --color-navy: #0b1f3a;
+  --color-navy-deep: #071528;
+  --color-navy-soft: #16324f;
+  --color-navy-tint: #eef2f7;
+
+  --color-teal: #0e9384;
+  --color-teal-deep: #0b7a6e;
+  --color-teal-soft: #e6f5f2;
+  --color-teal-line: #bfe5df;
+
+  --color-amber: #e8a33d;
+  --color-amber-soft: #fdf3e2;
+  --color-amber-ink: #8a5a11;
+  --color-amber-line: #f0d9ad;
+
+  --color-info: #1d4ed8;
+  --color-info-soft: #e8effd;
+  --color-info-ink: #1e40af;
+  --color-info-line: #cfdcfb;
+
+  --color-success: #157f5b;
+  --color-success-soft: #e4f5ee;
+  --color-success-ink: #12694b;
+  --color-success-line: #bfe6d8;
+
+  --color-danger: #c0392b;
+  --color-danger-soft: #fdecea;
+  --color-danger-ink: #a5342a;
+  --color-danger-line: #f3cdc8;
+
+  --color-neutral-ink: #5b6472;
+  --color-neutral-line: #e1e4e9;
+
+  --shadow-whisper: 0 1px 1px rgba(16, 24, 40, 0.04);
+  --shadow-lift: 0 1px 2px rgba(16, 24, 40, 0.04),
+    0 8px 24px -12px rgba(16, 24, 40, 0.18);
+  --shadow-float: 0 2px 4px rgba(16, 24, 40, 0.04),
+    0 16px 40px -16px rgba(16, 24, 40, 0.22),
+    0 0 0 1px rgba(16, 24, 40, 0.03);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    background: var(--color-teal-soft);
+    color: var(--color-teal-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-ink;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-[1200px] px-5 sm:px-6 lg:px-8;
+  }
+
+  .section-pad {
+    @apply py-16 sm:py-20 lg:py-28;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium tracking-[0.14em] text-teal-deep uppercase;
+  }
+
+  .display-1 {
+    @apply text-[2.6rem] leading-[1.02] font-semibold tracking-[-0.045em] sm:text-6xl lg:text-[4.25rem];
+  }
+
+  .display-2 {
+    @apply text-[2rem] leading-[1.08] font-semibold tracking-[-0.035em] sm:text-[2.65rem] lg:text-5xl;
+  }
+
+  .display-3 {
+    @apply text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-[1.75rem];
+  }
+
+  .lead {
+    @apply text-base leading-7 text-body sm:text-[1.0625rem];
+  }
+
+  /* ---------------------------------------------------------------- Buttons */
+  .btn {
+    @apply inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-sm font-medium whitespace-nowrap transition-all duration-200 select-none;
+  }
+
+  .btn:disabled {
+    @apply pointer-events-none opacity-55;
+  }
+
+  .btn-square {
+    @apply rounded-md;
+  }
+
+  .btn-primary {
+    @apply bg-navy text-white shadow-whisper hover:bg-navy-soft active:bg-navy-deep;
+  }
+
+  .btn-accent {
+    @apply bg-teal text-white shadow-whisper hover:bg-teal-deep;
+  }
+
+  .btn-outline {
+    @apply border border-hairline bg-surface text-ink hover:border-hairline-strong hover:bg-surface-soft;
+  }
+
+  .btn-ghost {
+    @apply text-body hover:bg-surface-soft hover:text-ink;
+  }
+
+  .btn-danger {
+    @apply border border-danger-line bg-danger-soft text-danger-ink hover:bg-[#fbdcd7];
+  }
+
+  .btn-sm {
+    @apply h-9 px-3.5 text-[13px];
+  }
+
+  .btn-lg {
+    @apply h-12 px-6 text-[15px];
+  }
+
+  .btn-icon {
+    @apply h-10 w-10 shrink-0 rounded-full p-0;
+  }
+
+  /* ----------------------------------------------------------------- Inputs */
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-ink;
+  }
+
+  .input {
+    @apply h-11 w-full rounded-md border border-hairline bg-surface px-3.5 text-sm text-ink transition placeholder:text-faint;
+  }
+
+  .input:hover {
+    @apply border-hairline-strong;
+  }
+
+  .input:focus {
+    @apply border-teal ring-4 ring-teal/10 outline-none;
+  }
+
+  .input[aria-invalid="true"] {
+    @apply border-danger ring-danger/10;
+  }
+
+  textarea.input {
+    @apply h-auto min-h-28 resize-y py-3 leading-6;
+  }
+
+  select.input {
+    @apply cursor-pointer pr-9;
+  }
+
+  .field-error {
+    @apply mt-1.5 flex items-start gap-1 text-xs leading-5 text-danger-ink;
+  }
+
+  .field-hint {
+    @apply mt-1.5 text-xs leading-5 text-mute;
+  }
+
+  /* ------------------------------------------------------------------ Cards */
+  .card {
+    @apply rounded-xl border border-hairline bg-surface shadow-whisper;
+  }
+
+  .card-hover {
+    @apply transition duration-200 hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-lift;
+  }
+
+  .surface-panel {
+    @apply rounded-2xl border border-hairline bg-surface;
+  }
+
+  /* ----------------------------------------------------------------- Badges */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] leading-none font-medium whitespace-nowrap;
+  }
+
+  .badge-pending {
+    @apply border-amber-line bg-amber-soft text-amber-ink;
+  }
+
+  .badge-accepted {
+    @apply border-info-line bg-info-soft text-info-ink;
+  }
+
+  .badge-in_progress {
+    @apply border-teal-line bg-teal-soft text-teal-deep;
+  }
+
+  .badge-completed {
+    @apply border-success-line bg-success-soft text-success-ink;
+  }
+
+  .badge-rejected {
+    @apply border-danger-line bg-danger-soft text-danger-ink;
+  }
+
+  .badge-cancelled {
+    @apply border-neutral-line bg-surface-soft text-neutral-ink;
+  }
+
+  /* ------------------------------------------------------------------- Misc */
+  .nav-link {
+    @apply rounded-full px-3 py-2 text-sm text-body transition hover:bg-surface-soft hover:text-ink;
+  }
+
+  .nav-link[aria-current="page"] {
+    @apply bg-navy-tint font-medium text-navy;
+  }
+
+  .divider {
+    @apply h-px w-full bg-hairline;
+  }
+
+  .icon-tile {
+    @apply flex h-11 w-11 items-center justify-center rounded-lg border border-hairline bg-surface text-navy;
+  }
+
+  .stat-value {
+    @apply text-[1.75rem] leading-none font-semibold tracking-[-0.03em] text-ink;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-surface-sunken;
+  }
+
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.65),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-xl border border-dashed border-hairline-strong bg-surface px-6 py-14 text-center;
+  }
+
+  .dialog {
+    @apply m-auto w-[min(560px,calc(100vw-2rem))] rounded-xl border border-hairline bg-surface p-0 text-ink shadow-float;
+  }
+
+  .dialog::backdrop {
+    background: rgba(7, 21, 40, 0.46);
+    backdrop-filter: blur(3px);
+  }
+
+  .toast {
+    @apply pointer-events-auto flex w-full items-start gap-3 rounded-lg border bg-surface px-4 py-3 text-sm shadow-float;
+  }
+
+  .toast-success {
+    @apply border-success-line text-success-ink;
+  }
+
+  .toast-error {
+    @apply border-danger-line text-danger-ink;
+  }
+
+  .toast-info {
+    @apply border-hairline text-ink;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Hero atmosphere — the one decorative gradient in the system. */
+.hero-atmosphere {
+  background:
+    radial-gradient(
+      46rem 30rem at 82% 8%,
+      rgba(14, 147, 132, 0.13),
+      transparent 62%
+    ),
+    radial-gradient(
+      36rem 26rem at 12% 0%,
+      rgba(11, 31, 58, 0.07),
+      transparent 60%
+    ),
+    var(--color-canvas);
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgba(11, 31, 58, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 31, 58, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 72%);
+}

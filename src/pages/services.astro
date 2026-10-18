@@ -1,0 +1,267 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { CATEGORIES } from '../scripts/api.js';
+import { icon } from '../scripts/icons.js';
+---
+
+<Layout
+  title="Browse home services"
+  description="Explore electricians, plumbers, AC repair, cleaning and more. Compare starting prices and book a verified TrustFix professional."
+  activeNav="services"
+>
+  <section class="border-b border-hairline bg-surface">
+    <div class="container-x py-12 sm:py-16">
+      <p class="eyebrow">Browse services</p>
+      <div class="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 class="display-2 max-w-2xl">Find the right help for your home.</h1>
+          <p class="lead mt-3 max-w-xl">
+            Every service lists a clear starting price and a verified
+            professional behind it.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 text-[12px] text-mute">
+          <Fragment set:html={icon('shieldCheck', 'h-4 w-4 text-teal-deep')} />
+          All professionals are profile-verified before listing
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-pad pt-8 sm:pt-10">
+    <div class="container-x">
+      <!-- Filter bar -->
+      <form id="filters" class="card p-3 sm:p-4" role="search" aria-label="Filter services">
+        <div class="grid gap-3 md:grid-cols-[1.4fr_0.8fr_0.9fr_0.8fr_auto]">
+          <div class="relative">
+            <label for="filter-q" class="sr-only">Search services</label>
+            <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">
+              <Fragment set:html={icon('search', 'h-4 w-4')} />
+            </span>
+            <input
+              id="filter-q"
+              name="q"
+              type="search"
+              class="input pl-9"
+              placeholder="Search services or skills"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="relative">
+            <label for="filter-city" class="sr-only">City</label>
+            <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">
+              <Fragment set:html={icon('pin', 'h-4 w-4')} />
+            </span>
+            <input
+              id="filter-city"
+              name="city"
+              type="text"
+              class="input pl-9"
+              placeholder="City"
+              autocomplete="address-level2"
+            />
+          </div>
+
+          <div>
+            <label for="filter-category" class="sr-only">Category</label>
+            <select id="filter-category" name="category" class="input">
+              <option value="">All categories</option>
+              {CATEGORIES.map((category) => (
+                <option value={category.slug}>{category.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label for="filter-sort" class="sr-only">Sort results</label>
+            <select id="filter-sort" name="sort" class="input">
+              <option value="recommended">Recommended</option>
+              <option value="price-low">Price: low to high</option>
+              <option value="price-high">Price: high to low</option>
+              <option value="rating">Highest rated</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary md:w-auto">
+            Search
+            <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+          </button>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-1.5 border-t border-hairline pt-3">
+          <button
+            type="button"
+            class="rounded-full border border-navy bg-navy px-3 py-1.5 text-[11px] font-medium text-white transition"
+            data-category-chip=""
+          >
+            All
+          </button>
+          {CATEGORIES.map((category) => (
+            <button
+              type="button"
+              class="rounded-full border border-hairline bg-surface px-3 py-1.5 text-[11px] text-body transition hover:border-teal-line hover:text-teal-deep"
+              data-category-chip={category.slug}
+            >
+              {category.name}
+            </button>
+          ))}
+          <button type="button" id="reset-filters" class="ml-auto hidden items-center gap-1 text-[11px] text-mute transition hover:text-ink" data-reset>
+            <Fragment set:html={icon('x', 'h-3 w-3')} /> Reset
+          </button>
+        </div>
+      </form>
+
+      <!-- Results header -->
+      <div class="mt-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="text-lg font-semibold tracking-[-0.02em] text-ink">Available services</h2>
+          <p id="result-count" class="mt-0.5 text-[12px] text-mute" aria-live="polite">Loading services…</p>
+        </div>
+        <p class="text-[11px] text-mute">
+          Prices shown are starting prices. Final quotes depend on the job.
+        </p>
+      </div>
+
+      <div id="service-results" class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-live="polite" aria-busy="true">
+        {
+          Array.from({ length: 6 }).map(() => (
+            <div class="card overflow-hidden">
+              <div class="skeleton h-36 rounded-none"></div>
+              <div class="space-y-3 p-5">
+                <div class="skeleton h-4 w-3/4"></div>
+                <div class="skeleton h-3 w-full"></div>
+                <div class="skeleton h-3 w-1/2"></div>
+                <div class="flex items-center justify-between pt-2">
+                  <div class="skeleton h-5 w-20"></div>
+                  <div class="skeleton h-8 w-24 rounded-full"></div>
+                </div>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import { apiFetch, CATEGORIES } from '../scripts/api.js';
+  import { serviceCard, emptyState, errorState } from '../scripts/render.js';
+  import { icon } from '../scripts/icons.js';
+  import { debounce } from '../scripts/ui.js';
+
+  const form = document.getElementById('filters');
+  const qInput = document.getElementById('filter-q');
+  const cityInput = document.getElementById('filter-city');
+  const categorySelect = document.getElementById('filter-category');
+  const sortSelect = document.getElementById('filter-sort');
+  const results = document.getElementById('service-results');
+  const count = document.getElementById('result-count');
+  const resetButton = document.getElementById('reset-filters');
+  const chips = [...document.querySelectorAll('[data-category-chip]')];
+
+  const params = new URLSearchParams(window.location.search);
+  qInput.value = params.get('q') || '';
+  cityInput.value = params.get('city') || '';
+  if (params.get('category')) categorySelect.value = params.get('category');
+  if (params.get('sort')) sortSelect.value = params.get('sort');
+
+  let requestId = 0;
+
+  function syncChips() {
+    chips.forEach((chip) => {
+      const active = chip.dataset.categoryChip === categorySelect.value;
+      chip.className = active
+        ? 'rounded-full border border-navy bg-navy px-3 py-1.5 text-[11px] font-medium text-white transition'
+        : 'rounded-full border border-hairline bg-surface px-3 py-1.5 text-[11px] text-body transition hover:border-teal-line hover:text-teal-deep';
+      chip.setAttribute('aria-pressed', String(active));
+    });
+
+    const hasFilters =
+      qInput.value || cityInput.value || categorySelect.value || sortSelect.value !== 'recommended';
+    resetButton.classList.toggle('hidden', !hasFilters);
+    resetButton.classList.toggle('flex', Boolean(hasFilters));
+  }
+
+  function updateUrl() {
+    const next = new URLSearchParams();
+    if (qInput.value.trim()) next.set('q', qInput.value.trim());
+    if (cityInput.value.trim()) next.set('city', cityInput.value.trim());
+    if (categorySelect.value) next.set('category', categorySelect.value);
+    if (sortSelect.value !== 'recommended') next.set('sort', sortSelect.value);
+    const query = next.toString();
+    window.history.replaceState({}, '', query ? `?${query}` : window.location.pathname);
+  }
+
+  async function load() {
+    const current = ++requestId;
+    const query = new URLSearchParams();
+    if (qInput.value.trim()) query.set('q', qInput.value.trim());
+    if (cityInput.value.trim()) query.set('city', cityInput.value.trim());
+    if (categorySelect.value) query.set('category', categorySelect.value);
+    if (sortSelect.value) query.set('sort', sortSelect.value);
+
+    results.setAttribute('aria-busy', 'true');
+    count.textContent = 'Loading services…';
+    syncChips();
+    updateUrl();
+
+    try {
+      const { services } = await apiFetch(`/services?${query.toString()}`, {
+        auth: false,
+      });
+      if (current !== requestId) return;
+
+      results.innerHTML = services.length
+        ? services.map(serviceCard).join('')
+        : `<div class="sm:col-span-2 lg:col-span-3">${emptyState(
+            'No services match those filters',
+            'Try a different keyword or city, or browse another category.',
+            '<button type="button" class="btn btn-outline btn-sm" data-clear-all>Clear filters</button>',
+          )}</div>`;
+
+      const activeCategory = CATEGORIES.find((c) => c.slug === categorySelect.value);
+      count.textContent = `${services.length} service${services.length === 1 ? '' : 's'} found${activeCategory ? ` in ${activeCategory.name}` : ''}${cityInput.value.trim() ? ` near ${cityInput.value.trim()}` : ''}`;
+
+      const clear = results.querySelector('[data-clear-all]');
+      clear?.addEventListener('click', resetAll);
+    } catch (error) {
+      if (current !== requestId) return;
+      results.innerHTML = `<div class="sm:col-span-2 lg:col-span-3">${errorState(error.message)}</div>`;
+      count.textContent = 'Could not load services';
+    } finally {
+      if (current === requestId) results.setAttribute('aria-busy', 'false');
+    }
+  }
+
+  function resetAll() {
+    qInput.value = '';
+    cityInput.value = '';
+    categorySelect.value = '';
+    sortSelect.value = 'recommended';
+    load();
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    load();
+  });
+
+  qInput.addEventListener('input', debounce(load, 420));
+  cityInput.addEventListener('input', debounce(load, 420));
+  categorySelect.addEventListener('change', load);
+  sortSelect.addEventListener('change', load);
+
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      categorySelect.value = chip.dataset.categoryChip;
+      load();
+    });
+  });
+
+  resetButton.addEventListener('click', resetAll);
+  syncChips();
+  load();
+</script>

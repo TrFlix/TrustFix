@@ -1,0 +1,225 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { icon } from '../scripts/icons.js';
+
+const channels = [
+  {
+    title: 'Email us',
+    body: 'For account, booking or partnership questions.',
+    value: 'hello@trustfix.com',
+    href: 'mailto:hello@trustfix.com',
+    icon: 'mail',
+  },
+  {
+    title: 'Call support',
+    body: 'Monday to Saturday, 9:00 am – 7:00 pm IST.',
+    value: '+91 80 4000 1200',
+    href: 'tel:+918040001200',
+    icon: 'phone',
+  },
+  {
+    title: 'Visit us',
+    body: 'Our team is based in Bengaluru, Karnataka.',
+    value: 'Indiranagar, Bengaluru',
+    href: null,
+    icon: 'pin',
+  },
+];
+
+const faqs = [
+  {
+    question: 'How do I book a service?',
+    answer: 'Browse a category, open the service you need, choose a professional and send a booking request with your preferred date and address.',
+  },
+  {
+    question: 'How do I know a provider is verified?',
+    answer: 'Providers create a profile with their experience, skills and service listings. Their reviews come only from customers with completed bookings.',
+  },
+  {
+    question: 'Can I cancel a booking?',
+    answer: 'Yes. While a request is pending or accepted, you can cancel it from your customer dashboard.',
+  },
+  {
+    question: 'How do I become a provider?',
+    answer: 'Create a provider account, complete your profile and list the services you offer. Customers in your city can then request bookings.',
+  },
+];
+---
+
+<Layout
+  activeNav="contact"
+  title="Contact TrustFix"
+  description="Contact the TrustFix team for help with bookings, accounts, provider onboarding or general questions."
+>
+  <section class="hero-atmosphere border-b border-hairline">
+    <div class="container-x py-16 sm:py-20 lg:py-24">
+      <p class="eyebrow">Contact us</p>
+      <h1 class="display-1 mt-4 max-w-3xl">
+        Questions, feedback or a booking that needs <span class="text-teal-deep">help?</span>
+      </h1>
+      <p class="lead mt-5 max-w-2xl">
+        Send us a message and the TrustFix team will get back to you. For
+        account-specific issues, include the email address you registered with.
+      </p>
+    </div>
+  </section>
+
+  <section class="section-pad">
+    <div class="container-x grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+      <div>
+        <div class="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+          {
+            channels.map((channel) => (
+              <div class="card flex items-start gap-4 p-5">
+                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-hairline bg-canvas text-navy">
+                  <Fragment set:html={icon(channel.icon, 'h-5 w-5')} />
+                </span>
+                <div class="min-w-0">
+                  <h2 class="text-sm font-semibold text-ink">{channel.title}</h2>
+                  <p class="mt-1 text-[12.5px] leading-5 text-body">{channel.body}</p>
+                  {channel.href ? (
+                    <a href={channel.href} class="mt-2 inline-block text-[13px] font-medium text-teal-deep hover:underline">
+                      {channel.value}
+                    </a>
+                  ) : (
+                    <p class="mt-2 text-[13px] font-medium text-ink">{channel.value}</p>
+                  )}
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        <div class="mt-8 rounded-xl border border-teal-line bg-teal-soft/60 p-5">
+          <p class="flex items-center gap-2 text-[13px] font-medium text-ink">
+            <span class="text-teal-deep"><Fragment set:html={icon('clock', 'h-4 w-4')} /></span>
+            Typical response time
+          </p>
+          <p class="mt-1.5 text-[13px] leading-6 text-body">
+            We usually reply within one business day. Urgent booking issues are
+            prioritised.
+          </p>
+        </div>
+      </div>
+
+      <div class="card p-6 sm:p-8">
+        <h2 class="text-lg font-semibold tracking-[-0.02em] text-ink">Send a message</h2>
+        <p class="mt-1.5 text-[13px] leading-6 text-body">
+          Fill in the form and we will follow up by email.
+        </p>
+
+        <form id="contact-form" class="mt-6 space-y-4" novalidate>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="label" for="contact-name">Full name</label>
+              <input id="contact-name" name="name" type="text" class="input" placeholder="Your name" required autocomplete="name" />
+            </div>
+            <div>
+              <label class="label" for="contact-email">Email address</label>
+              <input id="contact-email" name="email" type="email" class="input" placeholder="you@example.com" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div>
+            <label class="label" for="contact-topic">What is this about?</label>
+            <select id="contact-topic" name="topic" class="input" required>
+              <option value="">Choose a topic</option>
+              <option value="booking">A booking</option>
+              <option value="account">My account</option>
+              <option value="provider">Becoming a provider</option>
+              <option value="feedback">Feedback</option>
+              <option value="other">Something else</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="label" for="contact-message">Message</label>
+            <textarea id="contact-message" name="message" class="input min-h-32" placeholder="Tell us what you need help with…" required></textarea>
+          </div>
+
+          <p id="contact-error" class="field-error hidden" role="alert"></p>
+
+          <button type="submit" class="btn btn-primary w-full sm:w-auto">
+            Send message
+            <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+          </button>
+        </form>
+
+        <div id="contact-success" class="hidden rounded-xl border border-teal-line bg-teal-soft/70 p-5" role="status">
+          <p class="flex items-center gap-2 text-sm font-semibold text-ink">
+            <span class="text-teal-deep"><Fragment set:html={icon('checkCircle', 'h-5 w-5')} /></span>
+            Message received
+          </p>
+          <p class="mt-1.5 text-[13px] leading-6 text-body">
+            Thanks for reaching out. The TrustFix team will reply to the email
+            address you provided.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-hairline bg-surface">
+    <div class="section-pad container-x">
+      <p class="eyebrow">Frequently asked</p>
+      <h2 class="display-2 mt-3">Quick answers.</h2>
+
+      <div class="mt-8 grid gap-4 md:grid-cols-2">
+        {
+          faqs.map((faq) => (
+            <details class="card group p-5">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-ink">
+                {faq.question}
+                <span class="text-mute transition group-open:rotate-180">
+                  <Fragment set:html={icon('chevronDown', 'h-4 w-4')} />
+                </span>
+              </summary>
+              <p class="mt-3 text-[13px] leading-6 text-body">{faq.answer}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import { showToast } from '../scripts/ui.js';
+
+  const form = document.getElementById('contact-form');
+  const error = document.getElementById('contact-error');
+  const success = document.getElementById('contact-success');
+
+  form?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const data = new FormData(form);
+    const name = String(data.get('name') || '').trim();
+    const email = String(data.get('email') || '').trim();
+    const topic = String(data.get('topic') || '').trim();
+    const message = String(data.get('message') || '').trim();
+
+    if (!name || !email || !topic || !message) {
+      if (error) {
+        error.textContent = 'Please complete every field before sending.';
+        error.classList.remove('hidden');
+      }
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (error) {
+        error.textContent = 'Please enter a valid email address.';
+        error.classList.remove('hidden');
+      }
+      return;
+    }
+
+    error?.classList.add('hidden');
+    form.classList.add('hidden');
+    success?.classList.remove('hidden');
+    showToast('Thanks — your message is ready for the TrustFix team.', 'success');
+  });
+</script>

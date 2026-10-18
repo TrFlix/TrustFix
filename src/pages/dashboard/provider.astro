@@ -1,0 +1,1054 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import DashboardNav from '../../components/DashboardNav.astro';
+import { icon } from '../../scripts/icons.js';
+
+const navItems = [
+  { key: 'overview', label: 'Overview', icon: 'dashboard' },
+  { key: 'requests', label: 'Requests', icon: 'receipt' },
+  { key: 'services', label: 'My services', icon: 'wrench' },
+  { key: 'profile', label: 'Profile', icon: 'user' },
+];
+---
+
+<Layout
+  title="Provider dashboard"
+  description="Manage your TrustFix service listings, respond to customer requests and update booking statuses."
+>
+  <div class="container-x py-8 sm:py-10">
+    <div class="grid gap-6 lg:grid-cols-[240px_1fr] lg:items-start">
+      <DashboardNav
+        role="provider"
+        items={navItems}
+        base="/dashboard/provider"
+        helpHref="/contact"
+        helpLabel="Provider support"
+      />
+
+      <div class="min-w-0">
+        <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p class="eyebrow">Provider dashboard</p>
+            <h1 class="display-3 mt-2">
+              Welcome back, <span data-user-first-name>there</span>.
+            </h1>
+            <p class="mt-1.5 text-[13px] leading-6 text-body">
+              Manage your services, respond to requests and keep your profile sharp.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a href="/dashboard/provider?tab=services" data-go-tab="services" data-public-profile class="btn btn-outline btn-sm">
+              View public profile
+            </a>
+            <a href="/dashboard/provider?tab=services" data-go-tab="services" class="btn btn-primary btn-sm">
+              Add a service
+              <Fragment set:html={icon('plus', 'h-3.5 w-3.5')} />
+            </a>
+          </div>
+        </header>
+
+        <div id="dashboard-panel" aria-live="polite" aria-busy="true">
+          <div class="space-y-4">
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }, () => (
+                <div class="card p-4">
+                  <div class="skeleton h-3 w-24"></div>
+                  <div class="skeleton mt-3 h-7 w-12"></div>
+                  <div class="skeleton mt-2 h-3 w-28"></div>
+                </div>
+              ))}
+            </div>
+            <div class="grid gap-4 lg:grid-cols-2">
+              <div class="card space-y-3 p-5">
+                <div class="skeleton h-4 w-32"></div>
+                <div class="skeleton h-14 w-full rounded-lg"></div>
+                <div class="skeleton h-14 w-full rounded-lg"></div>
+              </div>
+              <div class="card space-y-3 p-5">
+                <div class="skeleton h-4 w-28"></div>
+                <div class="skeleton h-12 w-full rounded-lg"></div>
+                <div class="skeleton h-11 w-32 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    CATEGORIES,
+    escapeHtml,
+    formatCurrency,
+    formatDate,
+    formatDuration,
+    requireRole,
+    statusBadge,
+    updateCachedUser,
+  } from '../../scripts/api.js';
+  import {
+    avatarHtml,
+    emptyState,
+    errorState,
+    providerBookingCard,
+    starsHtml,
+  } from '../../scripts/render.js';
+  import { categoryIcon, icon } from '../../scripts/icons.js';
+  import { confirmDialog, setLoading, showToast } from '../../scripts/ui.js';
+  import {
+    clearFormErrors,
+    showFormAlert,
+    validateFields,
+  } from '../../scripts/forms.js';
+  import {
+    hydrateDashboardAccount,
+    hydrateSiteUser,
+    initDashboardTabs,
+  } from '../../scripts/dashboard.js';
+
+  const panel = document.getElementById('dashboard-panel');
+
+  const state = {
+    user: null,
+    bookings: [],
+    services: [],
+    requestFilter: 'all',
+    error: null,
+  };
+
+  const statusFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'accepted', label: 'Accepted' },
+    { key: 'in_progress', label: 'In progress' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ];
+
+  const tabs = initDashboardTabs({
+    fallback: 'overview',
+    onChange: (tab) => renderTab(tab),
+  });
+
+  /* ------------------------------------------------------------------ Helpers */
+
+  function countBy(status) {
+    return state.bookings.filter((booking) => booking.status === status).length;
+  }
+
+  function statCard(label, value, hint, iconName) {
+    return `<div class="card p-4">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-[11px] font-medium text-mute">${label}</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-surface-soft text-body" aria-hidden="true">
+          ${icon(iconName, 'h-3.5 w-3.5')}
+        </span>
+      </div>
+      <p class="stat-value mt-2">${value}</p>
+      <p class="mt-1 text-[11px] text-mute">${hint}</p>
+    </div>`;
+  }
+
+  function dataErrorBar(message) {
+    return `<div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger-line bg-danger-soft px-4 py-3">
+      <p class="flex items-center gap-2 text-[12px] leading-5 text-danger-ink">
+        <span aria-hidden="true">${icon('alert', 'h-4 w-4')}</span>
+        ${escapeHtml(message)}
+      </p>
+      <button type="button" class="btn btn-outline btn-sm" data-retry>Try again</button>
+    </div>`;
+  }
+
+  function serviceById(id) {
+    return state.services.find((service) => String(service.id) === String(id));
+  }
+
+  function bookingById(id) {
+    return state.bookings.find((booking) => String(booking.id) === String(id));
+  }
+
+  /* ----------------------------------------------------------------- Overview */
+
+  function statsSection() {
+    const completed = countBy('completed');
+    const total = state.bookings.length;
+    const completion = total ? Math.round((completed / total) * 100) : 0;
+
+    return `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      ${statCard('Total bookings', total, 'All time', 'receipt')}
+      ${statCard('Pending requests', countBy('pending'), 'Waiting for your reply', 'clock')}
+      ${statCard('Completed jobs', completed, `${completion}% completion rate`, 'checkCircle')}
+      ${statCard('Active services', state.services.length, 'Listed on your profile', 'wrench')}
+    </div>`;
+  }
+
+  function pendingRequestsCard() {
+    const pending = [...state.bookings]
+      .filter((booking) => booking.status === 'pending')
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime(),
+      )
+      .slice(0, 3);
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">Requests waiting</h2>
+          <p class="mt-0.5 text-[11px] text-mute">Respond quickly to win the job.</p>
+        </div>
+        <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="requests">View all</button>
+      </div>
+
+      ${
+        pending.length
+          ? `<div class="mt-3 space-y-2">
+              ${pending
+                .map(
+                  (booking) => `<div class="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-hairline p-3">
+                    <div class="flex min-w-0 items-center gap-2.5">
+                      ${avatarHtml(booking.customer_name, 'h-8 w-8 text-[10px]')}
+                      <div class="min-w-0">
+                        <p class="truncate text-[12px] font-medium text-ink">${escapeHtml(booking.customer_name)}</p>
+                        <p class="truncate text-[10px] text-mute">${escapeHtml(booking.service_title || 'Service request')} · ${escapeHtml(formatDate(booking.preferred_date))}</p>
+                      </div>
+                    </div>
+                    <div class="flex gap-1.5">
+                      <button type="button" class="btn btn-primary btn-sm" data-booking-action="accepted" data-booking-id="${booking.id}">Accept</button>
+                      <button type="button" class="btn btn-outline btn-sm" data-booking-action="rejected" data-booking-id="${booking.id}">Decline</button>
+                    </div>
+                  </div>`,
+                )
+                .join('')}
+            </div>`
+          : `<div class="flex flex-col items-center py-8 text-center">
+              <span class="flex h-11 w-11 items-center justify-center rounded-full bg-success-soft text-success-ink" aria-hidden="true">${icon('checkCircle', 'h-5 w-5')}</span>
+              <p class="mt-3 text-[13px] font-medium text-ink">You're all caught up</p>
+              <p class="mt-1 max-w-xs text-[12px] leading-5 text-mute">New customer requests will show up here for you to accept or decline.</p>
+            </div>`
+      }
+    </div>`;
+  }
+
+  function profileSnapshot() {
+    const user = state.user;
+    const providerId = user.providerId;
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-ink">Your public profile</h2>
+        <span class="inline-flex items-center gap-1 rounded-full border border-teal-line bg-teal-soft px-2 py-0.5 text-[10px] font-medium text-teal-deep">
+          ${icon('badgeCheck', 'h-3 w-3')} Verified
+        </span>
+      </div>
+
+      <div class="mt-4 flex items-center gap-3">
+        ${avatarHtml(user.full_name, 'h-12 w-12 text-sm')}
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-[14px] font-semibold text-ink">${escapeHtml(user.full_name)}</p>
+          <p class="truncate text-[11px] text-mute">${escapeHtml(user.category_name || '')} · ${escapeHtml(user.city || '')}</p>
+          <div class="mt-1">${starsHtml(user.rating, user.review_count)}</div>
+        </div>
+      </div>
+
+      <dl class="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-hairline bg-canvas/70 p-3 text-[11px]">
+        <div>
+          <dt class="text-mute">Experience</dt>
+          <dd class="mt-0.5 font-medium text-ink">${Number(user.experience_years) || 0} years</dd>
+        </div>
+        <div>
+          <dt class="text-mute">Category</dt>
+          <dd class="mt-0.5 truncate font-medium text-ink">${escapeHtml(user.category_name || 'Not set')}</dd>
+        </div>
+      </dl>
+
+      <div class="mt-4 flex gap-2">
+        ${providerId ? `<a href="/provider?id=${providerId}" class="btn btn-outline btn-sm flex-1">View profile</a>` : ''}
+        <button type="button" class="btn btn-ghost btn-sm flex-1" data-go-tab="profile">Edit details</button>
+      </div>
+    </div>`;
+  }
+
+  function servicesPreview() {
+    const services = state.services.slice(0, 2);
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">Your services</h2>
+          <p class="mt-0.5 text-[11px] text-mute">${state.services.length} listed</p>
+        </div>
+        <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="services">Manage all</button>
+      </div>
+
+      ${
+        services.length
+          ? `<div class="mt-3 divide-y divide-hairline">
+              ${services
+                .map(
+                  (service) => `<div class="flex items-center gap-3 py-2.5">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-soft text-body" aria-hidden="true">
+                      ${categoryIcon(service.category_slug || state.user.category, 'h-4 w-4')}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-[12px] font-medium text-ink">${escapeHtml(service.title)}</p>
+                      <p class="mt-0.5 text-[10px] text-mute">${formatDuration(service.duration_minutes)} · ${formatCurrency(service.price)}</p>
+                    </div>
+                    <button type="button" class="btn btn-ghost btn-sm" data-edit-service="${service.id}">Edit</button>
+                  </div>`,
+                )
+                .join('')}
+            </div>`
+          : `<p class="mt-5 text-center text-[12px] leading-5 text-mute">
+              You have not listed any services yet.
+            </p>`
+      }
+
+      <button type="button" class="btn btn-outline btn-sm mt-3 w-full" data-add-service>
+        ${icon('plus', 'h-3.5 w-3.5')}
+        Add a new service
+      </button>
+    </div>`;
+  }
+
+  function recentRequestsCard() {
+    const recent = [...state.bookings]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime(),
+      )
+      .slice(0, 3);
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-ink">Recent requests</h2>
+        <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="requests">View all</button>
+      </div>
+
+      ${
+        recent.length
+          ? `<div class="mt-3 divide-y divide-hairline">
+              ${recent
+                .map(
+                  (booking) => `<button type="button" class="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80" data-go-tab="requests">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-[12px] font-medium text-ink">${escapeHtml(booking.customer_name)}</p>
+                      <p class="mt-0.5 truncate text-[10px] text-mute">${escapeHtml(booking.service_title || 'Service request')} · ${escapeHtml(formatDate(booking.created_at))}</p>
+                    </div>
+                    ${statusBadge(booking.status)}
+                  </button>`,
+                )
+                .join('')}
+            </div>`
+          : `<p class="mt-6 text-center text-[12px] leading-5 text-mute">
+              No requests yet. Once customers find your profile, their requests will appear here.
+            </p>`
+      }
+    </div>`;
+  }
+
+  function renderOverview() {
+    panel.innerHTML = `<div class="space-y-4">
+      ${state.error ? dataErrorBar(state.error) : statsSection()}
+      ${
+        state.error
+          ? `<div class="grid gap-4 lg:grid-cols-2">${profileSnapshot()}${servicesPreview()}</div>`
+          : `<div class="grid gap-4 lg:grid-cols-2">${pendingRequestsCard()}${profileSnapshot()}</div>
+             <div class="grid gap-4 lg:grid-cols-2">${servicesPreview()}${recentRequestsCard()}</div>`
+      }
+    </div>`;
+  }
+
+  /* ----------------------------------------------------------------- Requests */
+
+  function renderRequests() {
+    const filter = state.requestFilter;
+    const filtered =
+      filter === 'all'
+        ? state.bookings
+        : state.bookings.filter((booking) => booking.status === filter);
+
+    const chips = statusFilters
+      .map((option) => {
+        const count =
+          option.key === 'all' ? state.bookings.length : countBy(option.key);
+        const active = option.key === filter;
+        return `<button
+          type="button"
+          data-request-filter="${option.key}"
+          aria-pressed="${active}"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+            active
+              ? 'border-navy bg-navy text-white'
+              : 'border-hairline bg-surface text-body hover:border-hairline-strong hover:text-ink'
+          }"
+        >
+          ${option.label}
+          <span class="${active ? 'text-white/60' : 'text-mute'}">${count}</span>
+        </button>`;
+      })
+      .join('');
+
+    let list;
+    if (state.error) {
+      list = dataErrorBar(state.error);
+    } else if (!filtered.length) {
+      list = state.bookings.length
+        ? emptyState(
+            'No requests in this tab',
+            'Nothing matches this status right now. Try another filter to review your other requests.',
+            '<button type="button" class="btn btn-outline btn-sm" data-request-filter="all">Show all requests</button>',
+          )
+        : emptyState(
+            'No customer requests yet',
+            'Share your profile and keep your services up to date. New booking requests will arrive here for you to accept or decline.',
+            '<a href="/dashboard/provider?tab=services" class="btn btn-primary btn-sm" data-go-tab="services">Manage services</a>',
+          );
+    } else {
+      list = `<div class="space-y-3">${filtered
+        .map((booking) => providerBookingCard(booking))
+        .join('')}</div>`;
+    }
+
+    panel.innerHTML = `<div class="space-y-4">
+      <div>
+        <h2 class="text-lg font-semibold tracking-[-0.01em] text-ink">Customer requests</h2>
+        <p class="mt-1 text-[13px] leading-5 text-body">
+          Accept a job, decline politely, then keep the status updated as you work.
+        </p>
+      </div>
+
+      ${
+        state.error
+          ? ''
+          : `<div class="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filter requests by status">${chips}</div>`
+      }
+
+      ${list}
+    </div>`;
+  }
+
+  /* ----------------------------------------------------------------- Services */
+
+  function renderServices() {
+    const services = state.services;
+
+    panel.innerHTML = `<div class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold tracking-[-0.01em] text-ink">My services</h2>
+          <p class="mt-1 text-[13px] leading-5 text-body">
+            Every listing appears on your public profile with its starting price.
+          </p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-add-service>
+          ${icon('plus', 'h-3.5 w-3.5')}
+          Add service
+        </button>
+      </div>
+
+      ${
+        state.error
+          ? dataErrorBar(state.error)
+          : services.length
+            ? `<div class="grid gap-4 sm:grid-cols-2">
+                ${services
+                  .map(
+                    (service) => `<article class="card flex h-full flex-col p-5">
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="flex min-w-0 items-start gap-2.5">
+                          <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-teal-soft text-teal-deep" aria-hidden="true">
+                            ${categoryIcon(service.category_slug || state.user.category, 'h-4 w-4')}
+                          </span>
+                          <div class="min-w-0">
+                            <h3 class="text-[13px] font-semibold text-ink">${escapeHtml(service.title)}</h3>
+                            <p class="mt-0.5 text-[10px] text-mute">${escapeHtml(service.category_name || state.user.category_name || '')} · ${formatDuration(service.duration_minutes)}</p>
+                          </div>
+                        </div>
+                        <p class="shrink-0 text-sm font-semibold text-ink">${formatCurrency(service.price)}</p>
+                      </div>
+
+                      <p class="mt-3 line-clamp-3 flex-1 text-[12px] leading-5 text-body">${escapeHtml(service.description || '')}</p>
+
+                      <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-hairline pt-3">
+                        <a href="/service?id=${service.id}" class="inline-flex items-center gap-1 text-[11px] font-medium text-teal-deep hover:underline">
+                          View public page ${icon('arrowRight', 'h-3 w-3')}
+                        </a>
+                        <div class="flex gap-1.5">
+                          <button type="button" class="btn btn-outline btn-sm" data-edit-service="${service.id}">Edit</button>
+                          <button type="button" class="btn btn-ghost btn-sm text-danger-ink hover:bg-danger-soft" data-delete-service="${service.id}">Delete</button>
+                        </div>
+                      </div>
+                    </article>`,
+                  )
+                  .join('')}
+              </div>`
+            : emptyState(
+                'No services listed yet',
+                'Add your first service with a clear description, starting price and duration so customers know what to expect.',
+                '<button type="button" class="btn btn-primary btn-sm" data-add-service>Add your first service</button>',
+              )
+      }
+    </div>`;
+  }
+
+  function openServiceDialog(service = null) {
+    const editing = Boolean(service);
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+
+    dialog.innerHTML = `
+      <form id="service-form" class="p-6" novalidate>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="eyebrow">${editing ? 'Edit service' : 'New service'}</p>
+            <h2 class="mt-1.5 text-base font-semibold text-ink">${editing ? 'Update this listing' : 'What will you offer?'}</h2>
+            <p class="mt-1 text-[12px] leading-5 text-mute">
+              Customers see this on your profile and when they browse your category.
+            </p>
+          </div>
+          <button type="button" class="rounded-md p-1 text-mute transition hover:bg-surface-soft hover:text-ink" data-service-close aria-label="Close dialog">
+            ${icon('x', 'h-4 w-4')}
+          </button>
+        </div>
+
+        <div class="mt-5 space-y-4">
+          <div data-field>
+            <label for="service-title" class="label">Service title</label>
+            <input id="service-title" type="text" class="input" maxlength="120" value="${escapeHtml(service?.title || '')}" placeholder="e.g. Ceiling fan installation" required />
+            <p class="field-error" id="service-title-error" hidden></p>
+          </div>
+
+          <div data-field>
+            <label for="service-description" class="label">Description</label>
+            <textarea id="service-description" class="input min-h-24" rows="4" maxlength="1000" placeholder="Explain what is included, how long it takes and anything the customer should prepare." required>${escapeHtml(service?.description || '')}</textarea>
+            <p class="field-hint">At least 20 characters.</p>
+            <p class="field-error" id="service-description-error" hidden></p>
+          </div>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div data-field>
+              <label for="service-price" class="label">Starting price (₹)</label>
+              <input id="service-price" type="number" class="input" min="49" max="200000" step="1" inputmode="numeric" value="${service?.price ?? ''}" placeholder="e.g. 499" required />
+              <p class="field-error" id="service-price-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="service-duration" class="label">Typical duration (minutes)</label>
+              <input id="service-duration" type="number" class="input" min="15" max="600" step="15" inputmode="numeric" value="${service?.duration_minutes ?? ''}" placeholder="e.g. 60" required />
+              <p class="field-error" id="service-duration-error" hidden></p>
+            </div>
+          </div>
+
+          <p class="rounded-lg border border-hairline bg-canvas px-3 py-2.5 text-[11px] leading-5 text-mute">
+            This listing will appear under <span class="font-medium text-body">${escapeHtml(state.user.category_name || 'your category')}</span>.
+          </p>
+        </div>
+
+        <div data-form-alert hidden></div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="btn btn-outline btn-sm" data-service-close>Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">${editing ? 'Save changes' : 'Publish service'}</button>
+        </div>
+      </form>`;
+
+    document.body.append(dialog);
+    dialog.showModal();
+
+    const form = dialog.querySelector('#service-form');
+    const title = dialog.querySelector('#service-title');
+    const description = dialog.querySelector('#service-description');
+    const price = dialog.querySelector('#service-price');
+    const duration = dialog.querySelector('#service-duration');
+    const submit = form.querySelector('button[type="submit"]');
+
+    const close = () => {
+      dialog.close();
+      dialog.remove();
+    };
+
+    dialog.querySelectorAll('[data-service-close]').forEach((button) => {
+      button.addEventListener('click', close);
+    });
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      close();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+
+      const priceValue = Number(price.value);
+      const durationValue = Number(duration.value);
+
+      const valid = validateFields([
+        { input: title, label: 'Service title', required: true, min: 5 },
+        { input: description, label: 'Description', required: true, min: 20 },
+        {
+          input: price,
+          label: 'Starting price',
+          required: true,
+          custom: () =>
+            !Number.isFinite(priceValue) || priceValue < 49 || priceValue > 200000
+              ? 'Enter a price between ₹49 and ₹2,00,000.'
+              : '',
+        },
+        {
+          input: duration,
+          label: 'Duration',
+          required: true,
+          custom: () =>
+            !Number.isInteger(durationValue) ||
+            durationValue < 15 ||
+            durationValue > 600
+              ? 'Enter a duration between 15 and 600 minutes.'
+              : '',
+        },
+      ]);
+
+      if (!valid) return;
+
+      setLoading(submit, true, editing ? 'Saving…' : 'Publishing…');
+
+      try {
+        const data = await apiFetch(
+          editing ? `/services/${service.id}` : '/services',
+          {
+            method: editing ? 'PATCH' : 'POST',
+            body: {
+              title: title.value.trim(),
+              description: description.value.trim(),
+              price: priceValue,
+              duration_minutes: durationValue,
+            },
+          },
+        );
+
+        if (editing) {
+          const index = state.services.findIndex(
+            (item) => String(item.id) === String(service.id),
+          );
+          if (index >= 0 && data.service) {
+            state.services[index] = { ...state.services[index], ...data.service };
+          }
+        } else if (data.service) {
+          state.services.unshift(data.service);
+        }
+
+        close();
+        showToast(
+          editing ? 'Service updated.' : 'Service published to your profile.',
+          'success',
+        );
+        renderTab(tabs.current);
+      } catch (error) {
+        showFormAlert(form, error.message);
+        setLoading(submit, false);
+      }
+    });
+
+    title.focus();
+  }
+
+  async function deleteService(service, button) {
+    const confirmed = await confirmDialog({
+      title: 'Delete this service?',
+      message: `"${service.title}" will be removed from your profile. Existing bookings are not affected.`,
+      confirmLabel: 'Delete service',
+      cancelLabel: 'Keep service',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    setLoading(button, true, 'Deleting…');
+
+    try {
+      await apiFetch(`/services/${service.id}`, { method: 'DELETE' });
+      state.services = state.services.filter(
+        (item) => String(item.id) !== String(service.id),
+      );
+      showToast('Service deleted.', 'success');
+      renderTab(tabs.current);
+    } catch (error) {
+      showToast(error.message, 'error');
+      setLoading(button, false);
+    }
+  }
+
+  /* ------------------------------------------------------------------ Profile */
+
+  function renderProfile() {
+    const user = state.user;
+
+    panel.innerHTML = `<div class="max-w-2xl space-y-4">
+      <div class="card p-5 sm:p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold tracking-[-0.01em] text-ink">Professional profile</h2>
+            <p class="mt-1 text-[13px] leading-6 text-body">
+              This information appears on your public profile and helps customers trust you.
+            </p>
+          </div>
+          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-teal-soft text-teal-deep sm:flex" aria-hidden="true">
+            ${icon('briefcase', 'h-4 w-4')}
+          </span>
+        </div>
+
+        <form id="provider-profile-form" class="mt-5 space-y-4" novalidate>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div data-field>
+              <label for="provider-profile-name" class="label">Full name</label>
+              <input id="provider-profile-name" name="full_name" type="text" class="input" value="${escapeHtml(user.full_name)}" autocomplete="name" required />
+              <p class="field-error" id="provider-profile-name-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="provider-profile-email" class="label">Email address</label>
+              <input id="provider-profile-email" type="email" class="input opacity-70" value="${escapeHtml(user.email)}" disabled />
+              <p class="field-hint">Email cannot be changed in this demo.</p>
+            </div>
+
+            <div data-field>
+              <label for="provider-profile-phone" class="label">Phone number</label>
+              <input id="provider-profile-phone" name="phone" type="tel" class="input" value="${escapeHtml(user.phone || '')}" autocomplete="tel" required />
+              <p class="field-error" id="provider-profile-phone-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="provider-profile-city" class="label">City</label>
+              <input id="provider-profile-city" name="city" type="text" class="input" value="${escapeHtml(user.city || '')}" autocomplete="address-level2" required />
+              <p class="field-error" id="provider-profile-city-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="provider-profile-category" class="label">Service category</label>
+              <select id="provider-profile-category" name="category" class="input" required>
+                <option value="">Select your trade</option>
+                ${CATEGORIES.map(
+                  (category) =>
+                    `<option value="${category.slug}" ${category.slug === user.category ? 'selected' : ''}>${escapeHtml(category.name)}</option>`,
+                ).join('')}
+              </select>
+              <p class="field-error" id="provider-profile-category-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="provider-profile-experience" class="label">Years of experience</label>
+              <input id="provider-profile-experience" name="experience_years" type="number" class="input" min="0" max="60" step="1" inputmode="numeric" value="${Number(user.experience_years) || 0}" required />
+              <p class="field-error" id="provider-profile-experience-error" hidden></p>
+            </div>
+          </div>
+
+          <div data-field>
+            <label for="provider-profile-address" class="label">Address</label>
+            <textarea id="provider-profile-address" name="address" class="input min-h-20" rows="2" autocomplete="street-address" required>${escapeHtml(user.address || '')}</textarea>
+            <p class="field-hint">Only your city is shown publicly. Your full address stays private.</p>
+            <p class="field-error" id="provider-profile-address-error" hidden></p>
+          </div>
+
+          <div data-field>
+            <div class="flex items-center justify-between">
+              <label for="provider-profile-description" class="label mb-0">Professional description</label>
+              <span class="text-[11px] text-mute"><span id="provider-description-count">0</span>/600</span>
+            </div>
+            <textarea id="provider-profile-description" name="description" class="input mt-1.5 min-h-28" rows="4" maxlength="600" required>${escapeHtml(user.description || '')}</textarea>
+            <p class="field-hint">Describe your skills, the work you do and what customers can expect.</p>
+            <p class="field-error" id="provider-profile-description-error" hidden></p>
+          </div>
+
+          <div data-form-alert hidden></div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            ${
+              user.providerId
+                ? `<a href="/provider?id=${user.providerId}" class="btn btn-ghost btn-sm">View public profile</a>`
+                : '<span></span>'
+            }
+            <button id="provider-profile-submit" type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="rounded-xl border border-teal-line bg-teal-soft/50 p-4">
+        <p class="flex items-start gap-2 text-[11px] leading-5 text-body">
+          <span class="mt-0.5 shrink-0 text-teal-deep" aria-hidden="true">${icon('shieldCheck', 'h-4 w-4')}</span>
+          Keep your description specific and honest. Complete profiles with clear services receive more booking requests.
+        </p>
+      </div>
+    </div>`;
+
+    const form = document.getElementById('provider-profile-form');
+    const name = document.getElementById('provider-profile-name');
+    const phone = document.getElementById('provider-profile-phone');
+    const city = document.getElementById('provider-profile-city');
+    const category = document.getElementById('provider-profile-category');
+    const experience = document.getElementById('provider-profile-experience');
+    const address = document.getElementById('provider-profile-address');
+    const description = document.getElementById('provider-profile-description');
+    const descriptionCount = document.getElementById('provider-description-count');
+    const submit = document.getElementById('provider-profile-submit');
+
+    descriptionCount.textContent = String(description.value.length);
+
+    description.addEventListener('input', () => {
+      descriptionCount.textContent = String(description.value.length);
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+
+      const experienceValue = Number(experience.value);
+
+      const valid = validateFields([
+        { input: name, label: 'Full name', required: true, min: 2 },
+        { input: phone, label: 'Phone number', required: true, phone: true },
+        { input: city, label: 'City', required: true },
+        { input: category, label: 'Service category', required: true },
+        {
+          input: experience,
+          label: 'Experience',
+          required: true,
+          custom: () =>
+            !Number.isFinite(experienceValue) ||
+            experienceValue < 0 ||
+            experienceValue > 60
+              ? 'Enter experience between 0 and 60 years.'
+              : '',
+        },
+        { input: address, label: 'Address', required: true, min: 10 },
+        {
+          input: description,
+          label: 'Professional description',
+          required: true,
+          min: 40,
+        },
+      ]);
+
+      if (!valid) return;
+
+      setLoading(submit, true, 'Saving…');
+
+      try {
+        const data = await apiFetch('/profile', {
+          method: 'PATCH',
+          body: {
+            full_name: name.value.trim(),
+            phone: phone.value.trim(),
+            city: city.value.trim(),
+            category: category.value,
+            experience_years: experienceValue,
+            address: address.value.trim(),
+            description: description.value.trim(),
+          },
+        });
+
+        state.user = { ...state.user, ...(data.user || {}) };
+        updateCachedUser(state.user);
+        hydrateDashboardAccount(state.user);
+        hydrateSiteUser(state.user);
+        showToast('Your profile has been updated.', 'success');
+        setLoading(submit, false);
+        renderProfile();
+      } catch (error) {
+        showFormAlert(form, error.message);
+        setLoading(submit, false);
+      }
+    });
+  }
+
+  /* ------------------------------------------------------------- Interactions */
+
+  async function updateBookingStatus(booking, status, button) {
+    if (status === 'rejected') {
+      const confirmed = await confirmDialog({
+        title: 'Decline this request?',
+        message: `Decline ${booking.customer_name}'s request for "${
+          booking.service_title || 'this service'
+        }"? The customer will see it as declined.`,
+        confirmLabel: 'Decline request',
+        cancelLabel: 'Keep request',
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+
+    if (status === 'completed') {
+      const confirmed = await confirmDialog({
+        title: 'Mark this job as completed?',
+        message:
+          'This closes the job and lets the customer leave a review. Make sure the work is finished before continuing.',
+        confirmLabel: 'Mark completed',
+        cancelLabel: 'Not yet',
+      });
+      if (!confirmed) return;
+    }
+
+    setLoading(button, true, 'Updating…');
+
+    const messages = {
+      accepted: 'Request accepted.',
+      rejected: 'Request declined.',
+      in_progress: 'Job marked as in progress.',
+      completed: 'Job marked as completed.',
+    };
+
+    try {
+      const data = await apiFetch(`/bookings/${booking.id}/status`, {
+        method: 'PATCH',
+        body: { status },
+      });
+
+      booking.status = data.booking?.status || status;
+      showToast(messages[status] || 'Booking updated.', 'success');
+      renderTab(tabs.current);
+    } catch (error) {
+      showToast(error.message, 'error');
+      setLoading(button, false);
+    }
+  }
+
+  panel.addEventListener('click', (event) => {
+    const target = event.target;
+
+    const filterTrigger = target.closest('[data-request-filter]');
+    if (filterTrigger) {
+      state.requestFilter = filterTrigger.dataset.requestFilter;
+      renderRequests();
+      panel.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    const actionTrigger = target.closest('[data-booking-action]');
+    if (actionTrigger) {
+      const booking = bookingById(actionTrigger.dataset.bookingId);
+      if (booking) {
+        updateBookingStatus(
+          booking,
+          actionTrigger.dataset.bookingAction,
+          actionTrigger,
+        );
+      }
+      return;
+    }
+
+    if (target.closest('[data-add-service]')) {
+      openServiceDialog();
+      return;
+    }
+
+    const editTrigger = target.closest('[data-edit-service]');
+    if (editTrigger) {
+      const service = serviceById(editTrigger.dataset.editService);
+      if (service) openServiceDialog(service);
+      return;
+    }
+
+    const deleteTrigger = target.closest('[data-delete-service]');
+    if (deleteTrigger) {
+      const service = serviceById(deleteTrigger.dataset.deleteService);
+      if (service) deleteService(service, deleteTrigger);
+      return;
+    }
+
+    const retryTrigger = target.closest('[data-retry]');
+    if (retryTrigger) {
+      retryTrigger.disabled = true;
+      loadData().then(() => renderTab(tabs.current));
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-go-tab]');
+    if (!trigger) return;
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    event.preventDefault();
+    tabs.go(trigger.dataset.goTab);
+  });
+
+  /* ---------------------------------------------------------------- Rendering */
+
+  function renderTab(tab) {
+    if (!state.user) return;
+
+    panel.setAttribute('aria-busy', 'true');
+
+    if (tab === 'requests') renderRequests();
+    else if (tab === 'services') renderServices();
+    else if (tab === 'profile') renderProfile();
+    else renderOverview();
+
+    panel.setAttribute('aria-busy', 'false');
+  }
+
+  /* -------------------------------------------------------------------- Load */
+
+  async function loadData() {
+    state.error = null;
+
+    try {
+      const [bookingsData, servicesData] = await Promise.all([
+        apiFetch('/bookings/me'),
+        apiFetch('/services/mine'),
+      ]);
+
+      state.bookings = bookingsData.bookings || [];
+      state.services = servicesData.services || [];
+    } catch (error) {
+      state.error = error.message;
+    }
+  }
+
+  async function load() {
+    let user;
+
+    try {
+      user = await requireRole('provider');
+      if (!user) return;
+    } catch (error) {
+      panel.innerHTML = errorState(error.message);
+      panel.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    state.user = user;
+    hydrateDashboardAccount(user);
+    hydrateSiteUser(user);
+
+    const publicLink = document.querySelector('[data-public-profile]');
+    if (publicLink) {
+      if (user.providerId) {
+        publicLink.setAttribute('href', `/provider?id=${user.providerId}`);
+        publicLink.removeAttribute('data-go-tab');
+      } else {
+        publicLink.remove();
+      }
+    }
+
+    tabs.start();
+
+    await loadData();
+    renderTab(tabs.current);
+  }
+
+  load();
+</script>

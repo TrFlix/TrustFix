@@ -1,0 +1,260 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AuthShell from '../../components/AuthShell.astro';
+import { icon } from '../../scripts/icons.js';
+
+const sidePoints = [
+  {
+    title: 'Verified professionals only',
+    body: 'Profiles are checked before they can receive booking requests.',
+  },
+  {
+    title: 'Clear starting prices',
+    body: 'Compare services before you book, with no hidden charges.',
+  },
+  {
+    title: 'Track every request',
+    body: 'Follow your booking from pending to completed in one dashboard.',
+  },
+];
+---
+
+<Layout
+  title="Customer registration"
+  description="Create a TrustFix customer account to book verified home service professionals."
+  hideFooter
+>
+  <AuthShell
+    eyebrow="Customer account"
+    title="Create your customer account."
+    subtitle="Tell us a little about you so professionals know where to help. It only takes a minute."
+    sideTitle="Your home, handled with care."
+    sideText="TrustFix gives you a simple way to find, compare and book trusted experts for the jobs you would rather not do yourself."
+    sidePoints={sidePoints}
+    sideNote="No online payments. You pay the professional directly after the service."
+  >
+    <form id="customer-form" class="space-y-4" novalidate>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div data-field>
+          <label for="customer-name" class="label">Full name</label>
+          <input id="customer-name" name="full_name" type="text" class="input" placeholder="e.g. Ananya Sharma" autocomplete="name" required />
+          <p class="field-error" id="customer-name-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="customer-email" class="label">Email address</label>
+          <input id="customer-email" name="email" type="email" class="input" placeholder="you@example.com" autocomplete="email" required />
+          <p class="field-error" id="customer-email-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="customer-phone" class="label">Phone number</label>
+          <input id="customer-phone" name="phone" type="tel" class="input" placeholder="98765 43210" autocomplete="tel" required />
+          <p class="field-error" id="customer-phone-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="customer-city" class="label">City</label>
+          <input id="customer-city" name="city" type="text" class="input" placeholder="e.g. Bengaluru" autocomplete="address-level2" required />
+          <p class="field-error" id="customer-city-error" hidden></p>
+        </div>
+      </div>
+
+      <div data-field>
+        <label for="customer-address" class="label">Address</label>
+        <textarea
+          id="customer-address"
+          name="address"
+          class="input min-h-20"
+          rows="2"
+          placeholder="Flat / house number, street, area"
+          autocomplete="street-address"
+          required
+        ></textarea>
+        <p class="field-hint">Used to prefill your booking requests. You can change it per booking.</p>
+        <p class="field-error" id="customer-address-error" hidden></p>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div data-field>
+          <label for="customer-password" class="label">Password</label>
+          <div class="relative">
+            <input id="customer-password" name="password" type="password" class="input pr-11" placeholder="At least 8 characters" autocomplete="new-password" required />
+            <button type="button" class="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-mute transition hover:bg-surface-soft hover:text-ink" data-toggle-password="customer-password" aria-label="Show password">
+              <Fragment set:html={icon('eye', 'h-4 w-4')} />
+            </button>
+          </div>
+          <div class="mt-2 flex gap-1" aria-hidden="true">
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+            <span class="h-1 flex-1 rounded-full bg-hairline" data-strength-bar></span>
+          </div>
+          <p class="mt-1.5 text-[11px] text-mute" id="password-strength" aria-live="polite">
+            Use 8+ characters with a number and a symbol.
+          </p>
+          <p class="field-error" id="customer-password-error" hidden></p>
+        </div>
+
+        <div data-field>
+          <label for="customer-confirm" class="label">Confirm password</label>
+          <input id="customer-confirm" name="confirm_password" type="password" class="input" placeholder="Re-enter your password" autocomplete="new-password" required />
+          <p class="field-error" id="customer-confirm-error" hidden></p>
+        </div>
+      </div>
+
+      <div data-field>
+        <label class="flex items-start gap-2.5 text-[12px] leading-5 text-body">
+          <input id="customer-terms" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 accent-teal" />
+          <span>
+            I agree to the
+            <a href="/terms" class="font-medium text-teal-deep hover:underline">Terms of Service</a>
+            and
+            <a href="/privacy" class="font-medium text-teal-deep hover:underline">Privacy Policy</a>.
+          </span>
+        </label>
+        <p class="field-error" id="customer-terms-error" hidden></p>
+      </div>
+
+      <div data-form-alert hidden></div>
+
+      <button id="customer-submit" type="submit" class="btn btn-primary w-full">
+        Create customer account
+        <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+      </button>
+
+      <p class="text-center text-[12px] text-mute">
+        Already have an account?
+        <a href="/login" class="font-medium text-teal-deep hover:underline">Log in</a>
+      </p>
+    </form>
+  </AuthShell>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    dashboardFor,
+    fetchMe,
+    getToken,
+    setSession,
+  } from '../../scripts/api.js';
+  import { setLoading, showToast } from '../../scripts/ui.js';
+  import {
+    clearFormErrors,
+    clearFieldError,
+    setFieldError,
+    showFormAlert,
+    validateFields,
+  } from '../../scripts/forms.js';
+
+  const form = document.getElementById('customer-form');
+  const name = document.getElementById('customer-name');
+  const email = document.getElementById('customer-email');
+  const phone = document.getElementById('customer-phone');
+  const city = document.getElementById('customer-city');
+  const address = document.getElementById('customer-address');
+  const password = document.getElementById('customer-password');
+  const confirm = document.getElementById('customer-confirm');
+  const terms = document.getElementById('customer-terms');
+  const submit = document.getElementById('customer-submit');
+  const strengthLabel = document.getElementById('password-strength');
+  const strengthBars = [...document.querySelectorAll('[data-strength-bar]')];
+
+  if (getToken()) {
+    fetchMe()
+      .then((user) => window.location.replace(dashboardFor(user.role)))
+      .catch(() => {
+        /* stale token — allow registration */
+      });
+  }
+
+  function scorePassword(value) {
+    let score = 0;
+    if (value.length >= 8) score += 1;
+    if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
+    if (/\d/.test(value)) score += 1;
+    if (/[^A-Za-z0-9]/.test(value)) score += 1;
+    return score;
+  }
+
+  password.addEventListener('input', () => {
+    const value = password.value;
+    const score = value ? scorePassword(value) : 0;
+    const colors = ['bg-hairline', 'bg-danger', 'bg-amber', 'bg-teal', 'bg-teal'];
+
+    strengthBars.forEach((bar, index) => {
+      bar.className = `h-1 flex-1 rounded-full ${index < score ? colors[score] : 'bg-hairline'}`;
+    });
+
+    strengthLabel.textContent = !value
+      ? 'Use 8+ characters with a number and a symbol.'
+      : score <= 1
+        ? 'Weak — add length, numbers or symbols.'
+        : score === 2
+          ? 'Fair — a longer password would be stronger.'
+          : score === 3
+            ? 'Good password.'
+            : 'Strong password.';
+
+    clearFieldError(password);
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearFormErrors(form);
+
+    const valid = validateFields([
+      { input: name, label: 'Full name', required: true, min: 2 },
+      { input: email, label: 'Email', required: true, email: true },
+      { input: phone, label: 'Phone number', required: true, phone: true },
+      { input: city, label: 'City', required: true },
+      { input: address, label: 'Address', required: true, min: 10 },
+      { input: password, label: 'Password', required: true, min: 8 },
+      {
+        input: confirm,
+        label: 'Confirm password',
+        required: true,
+        match: { value: password.value },
+        message: 'Passwords do not match.',
+      },
+    ]);
+
+    if (!terms.checked) {
+      setFieldError(terms, 'Please accept the terms to continue.');
+      if (valid) terms.focus();
+    }
+
+    if (!valid || !terms.checked) return;
+
+    setLoading(submit, true, 'Creating account…');
+
+    try {
+      const data = await apiFetch('/auth/register/customer', {
+        method: 'POST',
+        auth: false,
+        body: {
+          full_name: name.value.trim(),
+          email: email.value.trim(),
+          phone: phone.value.trim(),
+          city: city.value.trim(),
+          address: address.value.trim(),
+          password: password.value,
+        },
+      });
+
+      setSession(data.token, data.user);
+      showToast('Your customer account is ready. Welcome to TrustFix.', 'success');
+      window.location.assign(dashboardFor('customer'));
+    } catch (error) {
+      if (error.status === 409) {
+        setFieldError(email, 'An account with this email already exists.');
+        email.focus();
+      } else {
+        showFormAlert(form, error.message);
+      }
+      setLoading(submit, false);
+    }
+  });
+</script>

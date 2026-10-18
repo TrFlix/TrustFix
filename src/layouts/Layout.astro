@@ -1,0 +1,83 @@
+---
+import '../styles/global.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  activeNav?: 'home' | 'services' | 'providers' | 'about' | 'contact' | '';
+  hideHeader?: boolean;
+  hideFooter?: boolean;
+  bodyClass?: string;
+}
+
+const {
+  title = 'TrustFix — Trusted Professionals. Reliable Services.',
+  description = 'Find verified local electricians, plumbers, AC technicians, cleaners and more. Transparent pricing, trusted professionals and easy booking with TrustFix.',
+  activeNav = '',
+  hideHeader = false,
+  hideFooter = false,
+  bodyClass = '',
+} = Astro.props;
+
+const pageTitle = title.includes('TrustFix') ? title : `${title} — TrustFix`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#0b1f3a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={Astro.url} />
+    <title>{pageTitle}</title>
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:site_name" content="TrustFix" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap"
+      rel="stylesheet"
+    />
+
+    <script is:inline>
+      try {
+        if (localStorage.getItem('trustfix.token') && localStorage.getItem('trustfix.user')) {
+          document.documentElement.dataset.auth = 'user';
+        }
+      } catch (error) {
+        /* storage unavailable */
+      }
+    </script>
+  </head>
+
+  <body class={bodyClass}>
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[200] focus:rounded-md focus:bg-navy focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+    >
+      Skip to main content
+    </a>
+
+    {!hideHeader && <SiteHeader activeNav={activeNav} />}
+
+    <main id="main-content">
+      <slot />
+    </main>
+
+    {!hideFooter && <SiteFooter />}
+
+    <script>
+      import { initSiteChrome } from '../scripts/ui.js';
+      initSiteChrome();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,93 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { icon } from '../../scripts/icons.js';
+
+const options = [
+  {
+    href: '/register/customer',
+    label: 'I need a service',
+    title: 'Register as a customer',
+    body: 'Book verified professionals for repairs, maintenance and cleaning around your home.',
+    icon: 'home',
+    points: [
+      'Search services and compare starting prices',
+      'View verified profiles and real reviews',
+      'Track every booking from request to completion',
+    ],
+  },
+  {
+    href: '/register/provider',
+    label: 'I provide services',
+    title: 'Register as a provider',
+    body: 'Create a professional profile, list your services and receive booking requests near you.',
+    icon: 'briefcase',
+    points: [
+      'Build a public profile customers can trust',
+      'Add and manage your own service listings',
+      'Accept, decline and update customer requests',
+    ],
+  },
+];
+---
+
+<Layout
+  title="Create your account"
+  description="Join TrustFix as a customer looking for home services or as a verified service provider."
+  hideFooter
+>
+  <section class="relative overflow-hidden py-12 sm:py-16 lg:py-20">
+    <div class="pointer-events-none absolute inset-0 hero-grid opacity-40"></div>
+
+    <div class="container-x relative">
+      <div class="mx-auto max-w-2xl text-center">
+        <p class="eyebrow">Get started</p>
+        <h1 class="display-2 mt-3">How would you like to use TrustFix?</h1>
+        <p class="lead mt-4">
+          Choose the account that fits you. Customers book services; providers
+          receive and manage booking requests.
+        </p>
+      </div>
+
+      <div class="mx-auto mt-10 grid max-w-4xl gap-5 md:grid-cols-2">
+        {
+          options.map((option) => (
+            <article class="card card-hover flex flex-col p-6 sm:p-7">
+              <div class="flex items-start justify-between">
+                <span class="flex h-12 w-12 items-center justify-center rounded-xl border border-hairline bg-surface-soft text-navy">
+                  <span set:html={icon(option.icon, 'h-5 w-5')} />
+                </span>
+                <span class="rounded-full border border-hairline bg-canvas px-2.5 py-1 text-[10px] font-medium tracking-[0.08em] text-mute uppercase">
+                  {option.label}
+                </span>
+              </div>
+
+              <h2 class="mt-6 text-lg font-semibold tracking-[-0.02em] text-ink">
+                {option.title}
+              </h2>
+              <p class="mt-2 text-[13px] leading-6 text-body">{option.body}</p>
+
+              <ul class="mt-5 flex-1 space-y-2.5">
+                {option.points.map((point) => (
+                  <li class="flex items-start gap-2.5 text-[12.5px] leading-5 text-body">
+                    <span class="mt-0.5 shrink-0 text-teal-deep"><Fragment set:html={icon('check', 'h-3.5 w-3.5')} /></span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+
+              <a href={option.href} class="btn btn-primary mt-7 w-full">
+                Continue
+                <Fragment set:html={icon('arrowRight', 'h-4 w-4')} />
+              </a>
+            </article>
+          ))
+        }
+      </div>
+
+      <p class="mt-8 text-center text-[12px] text-mute">
+        Already have an account?
+        <a href="/login" class="font-medium text-teal-deep hover:underline">Log in</a>
+      </p>
+    </div>
+  </section>
+</Layout>

@@ -1,0 +1,382 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { icon } from '../scripts/icons.js';
+---
+
+<Layout
+  title="Request a service"
+  description="Send a booking request to a verified TrustFix professional."
+>
+  <div class="container-x py-8 sm:py-10">
+    <nav class="flex flex-wrap items-center gap-1.5 text-[12px] text-mute" aria-label="Breadcrumb">
+      <a href="/" class="transition hover:text-ink">Home</a>
+      <span aria-hidden="true">/</span>
+      <a href="/services" class="transition hover:text-ink">Services</a>
+      <span aria-hidden="true">/</span>
+      <span class="text-body">Request a service</span>
+    </nav>
+
+    <div id="booking-root" class="mt-6" aria-live="polite" aria-busy="true">
+      <div class="grid gap-6 lg:grid-cols-[1.45fr_0.75fr]">
+        <div class="card space-y-4 p-6">
+          <div class="skeleton h-7 w-64"></div>
+          <div class="skeleton h-3 w-full"></div>
+          <div class="skeleton h-3 w-10/12"></div>
+          <div class="skeleton mt-4 h-24 w-full rounded-lg"></div>
+          <div class="skeleton h-11 w-full rounded-md"></div>
+          <div class="skeleton h-11 w-full rounded-md"></div>
+          <div class="skeleton h-11 w-40 rounded-full"></div>
+        </div>
+        <div class="card space-y-3 p-6">
+          <div class="skeleton h-5 w-32"></div>
+          <div class="skeleton h-16 w-full rounded-lg"></div>
+          <div class="skeleton h-11 w-full rounded-full"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    escapeHtml,
+    formatCurrency,
+    formatDuration,
+    requireRole,
+    loginUrl,
+    todayInputValue,
+  } from '../scripts/api.js';
+  import { avatarHtml, emptyState, errorState } from '../scripts/render.js';
+  import { categoryIcon, icon } from '../scripts/icons.js';
+  import { setLoading, showToast } from '../scripts/ui.js';
+  import {
+    clearFormErrors,
+    showFormAlert,
+    validateFields,
+  } from '../scripts/forms.js';
+
+  const root = document.getElementById('booking-root');
+  const params = new URLSearchParams(window.location.search);
+  const serviceId = Number(params.get('service_id')) || null;
+  const providerId = Number(params.get('provider_id')) || null;
+
+  function failure(message, notFound = false) {
+    root.innerHTML = `<div class="mx-auto max-w-xl">${
+      notFound
+        ? emptyState(
+            'Nothing to book yet',
+            message,
+            '<a href="/services" class="btn btn-primary btn-sm">Browse services</a>',
+          )
+        : errorState(message)
+    }</div>`;
+    root.setAttribute('aria-busy', 'false');
+  }
+
+  function render(user, service, provider, services) {
+    const bookableServices = services.length
+      ? services
+      : service
+        ? [service]
+        : [];
+
+    if (!bookableServices.length) {
+      failure(
+        'This professional has not listed any services yet. Please browse other professionals in the meantime.',
+        true,
+      );
+      return;
+    }
+
+    const selected = service || bookableServices[0];
+    const providerInfo = provider || {
+      id: selected.provider_id,
+      full_name: selected.provider_name,
+      category_name: selected.category_name,
+      category_slug: selected.category_slug,
+      city: selected.provider_city,
+      rating: selected.rating,
+      review_count: selected.review_count,
+    };
+
+    root.innerHTML = `
+      <div class="grid gap-6 lg:grid-cols-[1.45fr_0.75fr] lg:items-start">
+        <div class="card p-6 sm:p-7">
+          <p class="eyebrow">Booking request</p>
+          <h1 class="display-3 mt-2">Tell us about the job.</h1>
+          <p class="mt-2 text-[13px] leading-6 text-body">
+            Your request goes straight to the professional. They will accept or
+            decline it, and you can follow the status in your dashboard.
+          </p>
+
+          <form id="booking-form" class="mt-6 space-y-4" novalidate>
+            <div data-field>
+              <label for="booking-service" class="label">Service</label>
+              ${
+                provider
+                  ? `<select id="booking-service" name="service_id" class="input" required>
+                      ${bookableServices
+                        .map(
+                          (item) =>
+                            `<option value="${item.id}" ${item.id === selected.id ? 'selected' : ''}>${escapeHtml(item.title)} — ${formatCurrency(item.price)}</option>`,
+                        )
+                        .join('')}
+                    </select>`
+                  : `<div class="flex items-center justify-between gap-3 rounded-md border border-hairline bg-canvas/70 px-3.5 py-3">
+                      <span class="text-sm font-medium text-ink">${escapeHtml(selected.title)}</span>
+                      <span class="text-[12px] text-mute">${formatCurrency(selected.price)}</span>
+                    </div>
+                    <input type="hidden" id="booking-service" name="service_id" value="${selected.id}" />`
+              }
+              <p class="field-error" id="booking-service-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="booking-problem" class="label">Describe the problem</label>
+              <textarea
+                id="booking-problem"
+                name="problem_description"
+                class="input min-h-28"
+                rows="4"
+                maxlength="1000"
+                placeholder="What needs fixing? Mention the symptoms, when it started and anything the professional should bring."
+                required
+              ></textarea>
+              <p class="field-hint">At least 15 characters. This helps the professional prepare.</p>
+              <p class="field-error" id="booking-problem-error" hidden></p>
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div data-field>
+                <label for="booking-date" class="label">Preferred date</label>
+                <input id="booking-date" name="preferred_date" type="date" class="input" min="${todayInputValue()}" required />
+                <p class="field-error" id="booking-date-error" hidden></p>
+              </div>
+
+              <div data-field>
+                <label for="booking-contact" class="label">Contact number</label>
+                <input id="booking-contact" name="contact_number" type="tel" class="input" placeholder="98765 43210" value="${escapeHtml(user.phone || '')}" autocomplete="tel" required />
+                <p class="field-error" id="booking-contact-error" hidden></p>
+              </div>
+            </div>
+
+            <div data-field>
+              <label for="booking-address" class="label">Service address</label>
+              <textarea
+                id="booking-address"
+                name="address"
+                class="input min-h-20"
+                rows="2"
+                placeholder="Flat / house number, street, area, city"
+                autocomplete="street-address"
+                required
+              >${escapeHtml(user.address || '')}</textarea>
+              <p class="field-error" id="booking-address-error" hidden></p>
+            </div>
+
+            <div data-form-alert hidden></div>
+
+            <button id="booking-submit" type="submit" class="btn btn-primary w-full">
+              Send booking request
+              ${icon('arrowRight', 'h-4 w-4')}
+            </button>
+            <p class="text-center text-[11px] text-mute">
+              You will not be charged online. Payment is settled directly with the professional.
+            </p>
+          </form>
+        </div>
+
+        <aside class="space-y-4 lg:sticky lg:top-28">
+          <div class="card p-6">
+            <p class="text-[10px] font-medium tracking-[0.1em] text-mute uppercase">Request summary</p>
+
+            <div class="mt-4 flex items-start gap-3">
+              <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-teal-soft text-teal-deep">
+                ${categoryIcon(providerInfo.category_slug, 'h-5 w-5')}
+              </span>
+              <div class="min-w-0">
+                <p id="summary-service" class="text-[13px] font-semibold text-ink">${escapeHtml(selected.title)}</p>
+                <p class="mt-0.5 text-[11px] text-mute">${escapeHtml(providerInfo.category_name)} · ${formatDuration(selected.duration_minutes)}</p>
+              </div>
+            </div>
+
+            <div class="mt-4 flex items-center gap-3 rounded-lg border border-hairline p-3">
+              ${avatarHtml(providerInfo.full_name, 'h-9 w-9 text-[11px]')}
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-[12px] font-medium text-ink">${escapeHtml(providerInfo.full_name)}</p>
+                <p class="text-[10px] text-mute">${escapeHtml(providerInfo.city)} · ${Number(providerInfo.rating) ? Number(providerInfo.rating).toFixed(1) : 'New'} rating</p>
+              </div>
+              <a href="/provider?id=${providerInfo.id}" class="text-mute transition hover:text-teal-deep" aria-label="View professional profile">
+                ${icon('chevronRight', 'h-4 w-4')}
+              </a>
+            </div>
+
+            <div class="mt-4 flex items-end justify-between border-t border-hairline pt-4">
+              <span class="text-[11px] text-mute">Starting price</span>
+              <span id="summary-price" class="text-lg font-semibold tracking-[-0.02em] text-ink">${formatCurrency(selected.price)}</span>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-hairline bg-surface p-5">
+            <p class="text-[10px] font-medium tracking-[0.1em] text-mute uppercase">What happens next</p>
+            <ol class="mt-3 space-y-3">
+              ${[
+                ['Request sent', 'The professional receives your details.'],
+                ['They respond', 'You will see accepted or declined in your dashboard.'],
+                ['Job completed', 'Pay the professional directly and leave a review.'],
+              ]
+                .map(
+                  ([title, body], index) => `<li class="flex gap-2.5">
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-soft font-mono text-[9px] text-body">${index + 1}</span>
+                    <div>
+                      <p class="text-[12px] font-medium text-ink">${title}</p>
+                      <p class="text-[11px] leading-5 text-mute">${body}</p>
+                    </div>
+                  </li>`,
+                )
+                .join('')}
+            </ol>
+          </div>
+
+          <div class="flex items-start gap-2.5 rounded-xl border border-teal-line bg-teal-soft/60 p-4">
+            <span class="mt-0.5 text-teal-deep">${icon('shieldCheck', 'h-4 w-4')}</span>
+            <p class="text-[11px] leading-5 text-body">
+              You can cancel a pending or accepted request from your dashboard
+              before work begins.
+            </p>
+          </div>
+        </aside>
+      </div>`;
+
+    root.setAttribute('aria-busy', 'false');
+
+    const form = document.getElementById('booking-form');
+    const serviceSelect = document.getElementById('booking-service');
+    const problem = document.getElementById('booking-problem');
+    const date = document.getElementById('booking-date');
+    const address = document.getElementById('booking-address');
+    const contact = document.getElementById('booking-contact');
+    const submit = document.getElementById('booking-submit');
+    const summaryService = document.getElementById('summary-service');
+    const summaryPrice = document.getElementById('summary-price');
+
+    if (provider && serviceSelect?.tagName === 'SELECT') {
+      serviceSelect.addEventListener('change', () => {
+        const item = bookableServices.find(
+          (entry) => String(entry.id) === serviceSelect.value,
+        );
+        if (item) {
+          summaryService.textContent = item.title;
+          summaryPrice.textContent = formatCurrency(item.price);
+        }
+      });
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+
+      const dateValue = date.value;
+      const today = todayInputValue();
+
+      const valid = validateFields([
+        { input: serviceSelect, label: 'Service', required: true },
+        { input: problem, label: 'Problem description', required: true, min: 15 },
+        { input: date, label: 'Preferred date', required: true },
+        { input: address, label: 'Service address', required: true, min: 10 },
+        { input: contact, label: 'Contact number', required: true, phone: true },
+      ]);
+
+      if (dateValue && dateValue < today) {
+        validateFields([
+          {
+            input: date,
+            label: 'Preferred date',
+            required: true,
+            custom: () => 'Choose today or a future date.',
+          },
+        ]);
+        return;
+      }
+
+      if (!valid) return;
+
+      setLoading(submit, true, 'Sending request…');
+
+      try {
+        const data = await apiFetch('/bookings', {
+          method: 'POST',
+          body: {
+            service_id: Number(serviceSelect.value),
+            problem_description: problem.value.trim(),
+            preferred_date: date.value,
+            address: address.value.trim(),
+            contact_number: contact.value.trim(),
+          },
+        });
+
+        showToast('Booking request sent to the professional.', 'success');
+
+        root.innerHTML = `<div class="mx-auto max-w-xl">
+          <div class="card p-8 text-center">
+            <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success-soft text-success-ink">
+              ${icon('checkCircle', 'h-7 w-7')}
+            </span>
+            <h1 class="mt-5 text-xl font-semibold tracking-[-0.02em] text-ink">Request sent successfully</h1>
+            <p class="mt-2 text-[13px] leading-6 text-body">
+              Booking <span class="font-medium text-ink">#TF-${String(data.booking.id).padStart(4, '0')}</span>
+              is now pending. ${escapeHtml(providerInfo.full_name)} will accept or decline it,
+              and you can follow every update in your dashboard.
+            </p>
+            <div class="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+              <a href="/dashboard/customer?tab=bookings" class="btn btn-primary">Go to my bookings</a>
+              <a href="/services" class="btn btn-outline">Browse more services</a>
+            </div>
+          </div>
+        </div>`;
+      } catch (error) {
+        showFormAlert(form, error.message);
+        setLoading(submit, false);
+      }
+    });
+  }
+
+  async function load() {
+    let user;
+    try {
+      user = await requireRole('customer');
+      if (!user) return;
+    } catch (error) {
+      failure(error.message);
+      return;
+    }
+
+    if (!serviceId && !providerId) {
+      failure(
+        'Choose a service or professional first, then send a booking request from their page.',
+        true,
+      );
+      return;
+    }
+
+    try {
+      if (serviceId) {
+        const data = await apiFetch(`/services/${serviceId}`, { auth: false });
+        render(user, data.service, null, data.related || []);
+      } else {
+        const data = await apiFetch(`/providers/${providerId}`, { auth: false });
+        render(user, null, data.provider, data.services || []);
+      }
+    } catch (error) {
+      if (error.status === 404) {
+        failure('We could not find that service or professional.', true);
+      } else {
+        failure(error.message);
+      }
+    }
+  }
+
+  load();
+</script>

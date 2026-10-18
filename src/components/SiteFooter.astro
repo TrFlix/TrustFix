@@ -1,0 +1,105 @@
+---
+import Logo from './Logo.astro';
+import { icon } from '../scripts/icons.js';
+
+const year = new Date().getFullYear();
+
+const columns = [
+  {
+    title: 'Company',
+    links: [
+      { label: 'About TrustFix', href: '/about' },
+      { label: 'How it works', href: '/#how-it-works' },
+      { label: 'Contact us', href: '/contact' },
+    ],
+  },
+  {
+    title: 'For customers',
+    links: [
+      { label: 'Browse services', href: '/services' },
+      { label: 'Find professionals', href: '/providers' },
+      { label: 'Customer dashboard', href: '/dashboard/customer' },
+    ],
+  },
+  {
+    title: 'For providers',
+    links: [
+      { label: 'Join TrustFix', href: '/register/provider' },
+      { label: 'Provider log in', href: '/login' },
+      { label: 'Provider dashboard', href: '/dashboard/provider' },
+    ],
+  },
+  {
+    title: 'Support',
+    links: [
+      { label: 'Help centre', href: '/contact' },
+      { label: 'Terms of service', href: '/terms' },
+      { label: 'Privacy policy', href: '/privacy' },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-hairline bg-surface">
+  <div class="container-x py-14 lg:py-16">
+    <div class="grid gap-10 lg:grid-cols-[1.4fr_2.6fr]">
+      <div class="max-w-sm">
+        <Logo />
+        <p class="mt-4 text-[13px] leading-6 text-body">
+          Trusted professionals. Reliable services. TrustFix connects homeowners
+          with verified local experts for everyday repairs and maintenance.
+        </p>
+        <div class="mt-6 space-y-2.5 text-[13px] text-body">
+          <a href="mailto:hello@trustfix.com" class="flex items-center gap-2.5 transition hover:text-ink">
+            <span class="text-mute"><Fragment set:html={icon('mail', 'h-4 w-4')} /></span>
+            hello@trustfix.com
+          </a>
+          <a href="tel:+918040001200" class="flex items-center gap-2.5 transition hover:text-ink">
+            <span class="text-mute"><Fragment set:html={icon('phone', 'h-4 w-4')} /></span>
+            +91 80 4000 1200
+          </a>
+          <p class="flex items-center gap-2.5">
+            <span class="text-mute"><Fragment set:html={icon('pin', 'h-4 w-4')} /></span>
+            Bengaluru, Karnataka
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-8 sm:grid-cols-4">
+        {
+          columns.map((column) => (
+            <div>
+              <h2 class="font-mono text-[10px] font-medium tracking-[0.12em] text-mute uppercase">
+                {column.title}
+              </h2>
+              <ul class="mt-4 space-y-2.5">
+                {column.links.map((link) => (
+                  <li>
+                    <a
+                      href={link.href}
+                      class="text-[13px] text-body transition hover:text-ink"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="mt-12 flex flex-col gap-3 border-t border-hairline pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-[12px] text-mute">© {year} TrustFix. All rights reserved.</p>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-mute">
+        <a href="/terms" class="transition hover:text-ink">Terms</a>
+        <a href="/privacy" class="transition hover:text-ink">Privacy</a>
+        <span class="inline-flex items-center gap-1.5">
+          <Fragment set:html={icon('heart', 'h-3.5 w-3.5 text-teal')} />
+          Built as a college mini project
+        </span>
+      </div>
+    </div>
+  </div>
+</footer>

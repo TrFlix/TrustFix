@@ -1,0 +1,836 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import DashboardNav from '../../components/DashboardNav.astro';
+import { icon } from '../../scripts/icons.js';
+
+const navItems = [
+  { key: 'overview', label: 'Overview', icon: 'dashboard' },
+  { key: 'bookings', label: 'My bookings', icon: 'calendar' },
+  { key: 'profile', label: 'Profile', icon: 'user' },
+];
+---
+
+<Layout
+  title="Customer dashboard"
+  description="Track your TrustFix booking requests, manage your profile and find trusted home service professionals."
+>
+  <div class="container-x py-8 sm:py-10">
+    <div class="grid gap-6 lg:grid-cols-[240px_1fr] lg:items-start">
+      <DashboardNav
+        role="customer"
+        items={navItems}
+        base="/dashboard/customer"
+        helpHref="/contact"
+        helpLabel="Contact support"
+      />
+
+      <div class="min-w-0">
+        <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p class="eyebrow">Customer dashboard</p>
+            <h1 class="display-3 mt-2">
+              Welcome back, <span data-user-first-name>there</span>.
+            </h1>
+            <p class="mt-1.5 text-[13px] leading-6 text-body">
+              Track your requests, manage bookings and find trusted help around your home.
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a href="/services" class="btn btn-primary btn-sm">
+              Book a service
+              <Fragment set:html={icon('arrowRight', 'h-3.5 w-3.5')} />
+            </a>
+            <a href="/providers" class="btn btn-outline btn-sm">Browse professionals</a>
+          </div>
+        </header>
+
+        <div id="dashboard-panel" aria-live="polite" aria-busy="true">
+          <div class="space-y-4">
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }, () => (
+                <div class="card p-4">
+                  <div class="skeleton h-3 w-24"></div>
+                  <div class="skeleton mt-3 h-7 w-12"></div>
+                  <div class="skeleton mt-2 h-3 w-28"></div>
+                </div>
+              ))}
+            </div>
+            <div class="card p-5">
+              <div class="skeleton h-5 w-52"></div>
+              <div class="skeleton mt-3 h-3 w-full"></div>
+              <div class="skeleton mt-4 h-11 w-full rounded-md"></div>
+            </div>
+            <div class="grid gap-4 lg:grid-cols-2">
+              <div class="card space-y-3 p-5">
+                <div class="skeleton h-4 w-28"></div>
+                <div class="skeleton h-16 w-full rounded-lg"></div>
+                <div class="skeleton h-11 w-32 rounded-full"></div>
+              </div>
+              <div class="card space-y-3 p-5">
+                <div class="skeleton h-4 w-32"></div>
+                <div class="skeleton h-12 w-full rounded-lg"></div>
+                <div class="skeleton h-12 w-full rounded-lg"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // @ts-nocheck
+  import {
+    apiFetch,
+    CATEGORIES,
+    escapeHtml,
+    formatDate,
+    requireRole,
+    updateCachedUser,
+  } from '../../scripts/api.js';
+  import {
+    customerBookingCard,
+    emptyState,
+    errorState,
+    providerCard,
+  } from '../../scripts/render.js';
+  import { categoryIcon, icon, starIcon } from '../../scripts/icons.js';
+  import { confirmDialog, setLoading, showToast } from '../../scripts/ui.js';
+  import {
+    clearFormErrors,
+    showFormAlert,
+    validateFields,
+  } from '../../scripts/forms.js';
+  import {
+    hydrateDashboardAccount,
+    hydrateSiteUser,
+    initDashboardTabs,
+  } from '../../scripts/dashboard.js';
+
+  const panel = document.getElementById('dashboard-panel');
+
+  const state = {
+    user: null,
+    bookings: [],
+    featured: [],
+    bookingFilter: 'all',
+    error: null,
+    loaded: false,
+  };
+
+  const statusFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'accepted', label: 'Accepted' },
+    { key: 'in_progress', label: 'In progress' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'cancelled', label: 'Cancelled' },
+    { key: 'rejected', label: 'Rejected' },
+  ];
+
+  const activeStatuses = ['pending', 'accepted', 'in_progress'];
+
+  const tabs = initDashboardTabs({
+    fallback: 'overview',
+    onChange: (tab) => renderTab(tab),
+  });
+
+  /* ------------------------------------------------------------------ Helpers */
+
+  function statusBadge(status) {
+    const labels = {
+      pending: 'Pending',
+      accepted: 'Accepted',
+      rejected: 'Rejected',
+      in_progress: 'In Progress',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    };
+    return `<span class="badge badge-${escapeHtml(status)}">${escapeHtml(labels[status] || status)}</span>`;
+  }
+
+  function sortByDate(list) {
+    return [...list].sort((a, b) => {
+      const first = new Date(a.preferred_date || a.created_at || 0).getTime();
+      const second = new Date(b.preferred_date || b.created_at || 0).getTime();
+      return first - second;
+    });
+  }
+
+  function countBy(status) {
+    return state.bookings.filter((booking) => booking.status === status).length;
+  }
+
+  function statCard(label, value, hint, iconName) {
+    return `<div class="card p-4">
+      <div class="flex items-start justify-between gap-2">
+        <p class="text-[11px] font-medium text-mute">${label}</p>
+        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-surface-soft text-body" aria-hidden="true">
+          ${icon(iconName, 'h-3.5 w-3.5')}
+        </span>
+      </div>
+      <p class="stat-value mt-2">${value}</p>
+      <p class="mt-1 text-[11px] text-mute">${hint}</p>
+    </div>`;
+  }
+
+  function dataErrorBar(message) {
+    return `<div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger-line bg-danger-soft px-4 py-3">
+      <p class="flex items-center gap-2 text-[12px] leading-5 text-danger-ink">
+        <span aria-hidden="true">${icon('alert', 'h-4 w-4')}</span>
+        ${escapeHtml(message)}
+      </p>
+      <button type="button" class="btn btn-outline btn-sm" data-retry>Try again</button>
+    </div>`;
+  }
+
+  /* ----------------------------------------------------------------- Overview */
+
+  function statsSection() {
+    const active = state.bookings.filter((booking) =>
+      activeStatuses.includes(booking.status),
+    ).length;
+    const completed = countBy('completed');
+    const reviewed = state.bookings.filter((booking) => booking.review_id).length;
+
+    return `<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      ${statCard('Total requests', state.bookings.length, 'All time', 'receipt')}
+      ${statCard('Active requests', active, 'Awaiting or in progress', 'clock')}
+      ${statCard('Completed jobs', completed, 'Services finished', 'checkCircle')}
+      ${statCard('Reviews written', reviewed, 'Your feedback', 'star')}
+    </div>`;
+  }
+
+  function searchCard() {
+    return `<div class="card p-5 sm:p-6">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold tracking-[-0.01em] text-ink">Find your next fix</h2>
+          <p class="mt-1 text-[13px] leading-6 text-body">Search verified professionals by service or city.</p>
+        </div>
+        <span class="hidden items-center gap-1.5 text-[11px] text-mute sm:flex">
+          ${icon('shieldCheck', 'h-3.5 w-3.5 text-teal-deep')}
+          Every professional is verified
+        </span>
+      </div>
+      <form action="/services" method="get" class="mt-4 grid gap-2 sm:grid-cols-[1fr_220px_auto]">
+        <div class="relative">
+          <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">${icon('search', 'h-4 w-4')}</span>
+          <input type="search" name="q" class="input pl-9" placeholder="What do you need help with?" aria-label="Search services" />
+        </div>
+        <div class="relative">
+          <span class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-mute">${icon('pin', 'h-4 w-4')}</span>
+          <input type="text" name="city" class="input pl-9" value="${escapeHtml(state.user.city || '')}" placeholder="Your city" aria-label="City" />
+        </div>
+        <button type="submit" class="btn btn-primary">Search</button>
+      </form>
+    </div>`;
+  }
+
+  function upcomingCard() {
+    const upcoming = sortByDate(
+      state.bookings.filter((booking) => activeStatuses.includes(booking.status)),
+    )[0];
+
+    if (!upcoming) {
+      return `<div class="card flex flex-col p-5">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-sm font-semibold text-ink">Next appointment</h2>
+          <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="bookings">View all</button>
+        </div>
+        <div class="flex flex-1 flex-col items-center justify-center py-8 text-center">
+          <span class="flex h-11 w-11 items-center justify-center rounded-full bg-surface-soft text-mute" aria-hidden="true">${icon('calendar', 'h-5 w-5')}</span>
+          <p class="mt-3 text-[13px] font-medium text-ink">No upcoming appointments</p>
+          <p class="mt-1 max-w-xs text-[12px] leading-5 text-mute">When a professional accepts your request, the details will appear here.</p>
+          <a href="/services" class="btn btn-outline btn-sm mt-4">Find a service</a>
+        </div>
+      </div>`;
+    }
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-ink">Next appointment</h2>
+        <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="bookings">View all</button>
+      </div>
+
+      <div class="mt-4 flex items-start gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-soft text-teal-deep" aria-hidden="true">
+          ${categoryIcon(upcoming.category_slug, 'h-5 w-5')}
+        </span>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="truncate text-[13px] font-semibold text-ink">${escapeHtml(upcoming.service_title || 'Service request')}</p>
+            ${statusBadge(upcoming.status)}
+          </div>
+          <p class="mt-0.5 truncate text-[11px] text-mute">${escapeHtml(upcoming.provider_name || '')} · ${escapeHtml(upcoming.category_name || '')}</p>
+        </div>
+      </div>
+
+      <div class="mt-4 grid gap-2 rounded-lg border border-hairline bg-canvas/70 p-3">
+        <p class="flex items-center gap-2 text-[12px] text-body">
+          <span class="text-mute" aria-hidden="true">${icon('calendar', 'h-3.5 w-3.5')}</span>
+          ${escapeHtml(formatDate(upcoming.preferred_date))}
+        </p>
+        <p class="flex items-start gap-2 text-[12px] leading-5 text-body">
+          <span class="mt-0.5 shrink-0 text-mute" aria-hidden="true">${icon('pin', 'h-3.5 w-3.5')}</span>
+          <span class="line-clamp-2">${escapeHtml(upcoming.address || '')}</span>
+        </p>
+      </div>
+
+      <button type="button" class="btn btn-outline btn-sm mt-4" data-go-tab="bookings">View booking details</button>
+    </div>`;
+  }
+
+  function recentBookingsCard() {
+    const recent = [...state.bookings]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime(),
+      )
+      .slice(0, 3);
+
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold text-ink">Recent activity</h2>
+        <button type="button" class="text-[11px] font-medium text-teal-deep hover:underline" data-go-tab="bookings">View all</button>
+      </div>
+
+      ${
+        recent.length
+          ? `<div class="mt-3 divide-y divide-hairline">
+              ${recent
+                .map(
+                  (booking) => `<button type="button" class="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80" data-go-tab="bookings">
+                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-soft text-body" aria-hidden="true">
+                      ${categoryIcon(booking.category_slug, 'h-4 w-4')}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-[12px] font-medium text-ink">${escapeHtml(booking.service_title || 'Service request')}</p>
+                      <p class="mt-0.5 truncate text-[10px] text-mute">${escapeHtml(booking.provider_name || '')} · ${escapeHtml(formatDate(booking.preferred_date))}</p>
+                    </div>
+                    ${statusBadge(booking.status)}
+                  </button>`,
+                )
+                .join('')}
+            </div>`
+          : `<p class="mt-6 text-center text-[12px] leading-5 text-mute">
+              Nothing here yet. Your booking requests will appear in this list.
+            </p>`
+      }
+    </div>`;
+  }
+
+  function categoriesCard() {
+    return `<div class="card p-5">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h2 class="text-sm font-semibold text-ink">Browse categories</h2>
+          <p class="mt-0.5 text-[11px] text-mute">Popular services around your home.</p>
+        </div>
+        <a href="/services" class="inline-flex items-center gap-1 text-[11px] font-medium text-teal-deep hover:underline">
+          All services ${icon('arrowRight', 'h-3 w-3')}
+        </a>
+      </div>
+
+      <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        ${CATEGORIES.map(
+          (category) => `<a href="/services?category=${category.slug}" class="group rounded-lg border border-hairline p-3 transition hover:border-hairline-strong hover:bg-surface-soft">
+            <span class="flex h-8 w-8 items-center justify-center rounded-md bg-canvas text-navy transition group-hover:bg-surface" aria-hidden="true">
+              ${categoryIcon(category.slug, 'h-4 w-4')}
+            </span>
+            <p class="mt-2 text-[12px] font-medium text-ink">${escapeHtml(category.name)}</p>
+            <p class="mt-0.5 line-clamp-1 text-[10px] text-mute">${escapeHtml(category.description)}</p>
+          </a>`,
+        ).join('')}
+      </div>
+    </div>`;
+  }
+
+  function featuredSection() {
+    if (!state.featured.length) return '';
+
+    return `<section aria-labelledby="featured-heading">
+      <div class="mb-3 flex items-center justify-between gap-2">
+        <h2 id="featured-heading" class="text-sm font-semibold text-ink">Featured professionals</h2>
+        <a href="/providers" class="inline-flex items-center gap-1 text-[11px] font-medium text-teal-deep hover:underline">
+          View all ${icon('arrowRight', 'h-3 w-3')}
+        </a>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2">
+        ${state.featured.map((provider) => providerCard(provider)).join('')}
+      </div>
+    </section>`;
+  }
+
+  function renderOverview() {
+    panel.innerHTML = `<div class="space-y-4">
+      ${state.error ? dataErrorBar(state.error) : statsSection()}
+      ${searchCard()}
+      ${state.error ? '' : `<div class="grid gap-4 lg:grid-cols-2">${upcomingCard()}${recentBookingsCard()}</div>`}
+      ${categoriesCard()}
+      ${featuredSection()}
+    </div>`;
+  }
+
+  /* ----------------------------------------------------------------- Bookings */
+
+  function renderBookings() {
+    const filter = state.bookingFilter;
+    const filtered =
+      filter === 'all'
+        ? state.bookings
+        : state.bookings.filter((booking) => booking.status === filter);
+
+    const chips = statusFilters
+      .map((option) => {
+        const count =
+          option.key === 'all' ? state.bookings.length : countBy(option.key);
+        const active = option.key === filter;
+        return `<button
+          type="button"
+          data-booking-filter="${option.key}"
+          aria-pressed="${active}"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+            active
+              ? 'border-navy bg-navy text-white'
+              : 'border-hairline bg-surface text-body hover:border-hairline-strong hover:text-ink'
+          }"
+        >
+          ${option.label}
+          <span class="${active ? 'text-white/60' : 'text-mute'}">${count}</span>
+        </button>`;
+      })
+      .join('');
+
+    let list;
+    if (state.error) {
+      list = dataErrorBar(state.error);
+    } else if (!filtered.length) {
+      list = state.bookings.length
+        ? emptyState(
+            'Nothing in this tab',
+            'You have no bookings with this status. Try another filter to see your other requests.',
+            '<button type="button" class="btn btn-outline btn-sm" data-booking-filter="all">Show all bookings</button>',
+          )
+        : emptyState(
+            'No booking requests yet',
+            'Find a service you need, choose a professional and send your first request. It will appear here with live status updates.',
+            '<a href="/services" class="btn btn-primary btn-sm">Find a service</a>',
+          );
+    } else {
+      list = `<div class="space-y-3">${filtered
+        .map((booking) => customerBookingCard(booking))
+        .join('')}</div>`;
+    }
+
+    panel.innerHTML = `<div class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold tracking-[-0.01em] text-ink">My bookings</h2>
+          <p class="mt-1 text-[13px] leading-5 text-body">Every request, from pending to completed.</p>
+        </div>
+        <a href="/services" class="btn btn-primary btn-sm">New booking</a>
+      </div>
+
+      ${
+        state.error
+          ? ''
+          : `<div class="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label="Filter bookings by status">${chips}</div>`
+      }
+
+      ${list}
+    </div>`;
+  }
+
+  /* ------------------------------------------------------------------ Profile */
+
+  function renderProfile() {
+    const user = state.user;
+
+    panel.innerHTML = `<div class="max-w-2xl space-y-4">
+      <div class="card p-5 sm:p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold tracking-[-0.01em] text-ink">Profile settings</h2>
+            <p class="mt-1 text-[13px] leading-6 text-body">
+              Keep your contact details current so professionals can reach you.
+            </p>
+          </div>
+          <span class="hidden h-9 w-9 items-center justify-center rounded-lg bg-teal-soft text-teal-deep sm:flex" aria-hidden="true">
+            ${icon('user', 'h-4 w-4')}
+          </span>
+        </div>
+
+        <form id="profile-form" class="mt-5 space-y-4" novalidate>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div data-field>
+              <label for="profile-name" class="label">Full name</label>
+              <input id="profile-name" name="full_name" type="text" class="input" value="${escapeHtml(user.full_name)}" autocomplete="name" required />
+              <p class="field-error" id="profile-name-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="profile-email" class="label">Email address</label>
+              <input id="profile-email" type="email" class="input opacity-70" value="${escapeHtml(user.email)}" disabled />
+              <p class="field-hint">Email cannot be changed in this demo.</p>
+            </div>
+
+            <div data-field>
+              <label for="profile-phone" class="label">Phone number</label>
+              <input id="profile-phone" name="phone" type="tel" class="input" value="${escapeHtml(user.phone || '')}" autocomplete="tel" required />
+              <p class="field-error" id="profile-phone-error" hidden></p>
+            </div>
+
+            <div data-field>
+              <label for="profile-city" class="label">City</label>
+              <input id="profile-city" name="city" type="text" class="input" value="${escapeHtml(user.city || '')}" autocomplete="address-level2" required />
+              <p class="field-error" id="profile-city-error" hidden></p>
+            </div>
+          </div>
+
+          <div data-field>
+            <label for="profile-address" class="label">Address</label>
+            <textarea id="profile-address" name="address" class="input min-h-20" rows="2" autocomplete="street-address" required>${escapeHtml(user.address || '')}</textarea>
+            <p class="field-hint">Used to prefill your booking requests. You can change it per booking.</p>
+            <p class="field-error" id="profile-address-error" hidden></p>
+          </div>
+
+          <div data-form-alert hidden></div>
+
+          <div class="flex justify-end">
+            <button id="profile-submit" type="submit" class="btn btn-primary">Save changes</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="rounded-xl border border-teal-line bg-teal-soft/50 p-4">
+        <p class="flex items-start gap-2 text-[11px] leading-5 text-body">
+          <span class="mt-0.5 shrink-0 text-teal-deep" aria-hidden="true">${icon('shieldCheck', 'h-4 w-4')}</span>
+          Your address is only shared with the professional you book, and it is never shown publicly.
+        </p>
+      </div>
+    </div>`;
+
+    const form = document.getElementById('profile-form');
+    const name = document.getElementById('profile-name');
+    const phone = document.getElementById('profile-phone');
+    const city = document.getElementById('profile-city');
+    const address = document.getElementById('profile-address');
+    const submit = document.getElementById('profile-submit');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+
+      const valid = validateFields([
+        { input: name, label: 'Full name', required: true, min: 2 },
+        { input: phone, label: 'Phone number', required: true, phone: true },
+        { input: city, label: 'City', required: true },
+        { input: address, label: 'Address', required: true, min: 10 },
+      ]);
+
+      if (!valid) return;
+
+      setLoading(submit, true, 'Saving…');
+
+      try {
+        const data = await apiFetch('/profile', {
+          method: 'PATCH',
+          body: {
+            full_name: name.value.trim(),
+            phone: phone.value.trim(),
+            city: city.value.trim(),
+            address: address.value.trim(),
+          },
+        });
+
+        state.user = { ...state.user, ...(data.user || {}) };
+        updateCachedUser(state.user);
+        hydrateDashboardAccount(state.user);
+        hydrateSiteUser(state.user);
+        showToast('Your profile has been updated.', 'success');
+        setLoading(submit, false);
+      } catch (error) {
+        showFormAlert(form, error.message);
+        setLoading(submit, false);
+      }
+    });
+  }
+
+  /* ----------------------------------------------------------------- Reviews */
+
+  function openReviewDialog(booking) {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'dialog';
+    dialog.innerHTML = `
+      <form id="review-form" class="p-6" novalidate>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="eyebrow">Leave a review</p>
+            <h2 class="mt-1.5 text-base font-semibold text-ink">How did ${escapeHtml(booking.provider_name)} do?</h2>
+            <p class="mt-1 text-[12px] leading-5 text-mute">Your feedback helps other customers choose with confidence.</p>
+          </div>
+          <button type="button" class="rounded-md p-1 text-mute transition hover:bg-surface-soft hover:text-ink" data-review-close aria-label="Close review dialog">
+            ${icon('x', 'h-4 w-4')}
+          </button>
+        </div>
+
+        <div class="mt-5">
+          <div class="flex gap-1.5" role="radiogroup" aria-label="Star rating">
+            ${[1, 2, 3, 4, 5]
+              .map(
+                (value) => `<button
+                  type="button"
+                  role="radio"
+                  aria-checked="false"
+                  aria-label="${value} star${value > 1 ? 's' : ''}"
+                  data-rating-value="${value}"
+                  class="rounded p-0.5 text-hairline-strong transition hover:scale-105 hover:text-amber"
+                >${starIcon('h-7 w-7')}</button>`,
+              )
+              .join('')}
+          </div>
+          <p class="mt-1.5 text-[11px] text-mute" data-rating-label>Select a rating</p>
+          <p class="field-error" id="review-rating-error" hidden></p>
+        </div>
+
+        <div class="mt-4" data-field>
+          <label for="review-comment" class="label">Your experience</label>
+          <textarea id="review-comment" class="input min-h-24" rows="4" maxlength="600" placeholder="What went well? Was the professional on time and prepared?"></textarea>
+          <p class="field-hint">At least 10 characters.</p>
+          <p class="field-error" id="review-comment-error" hidden></p>
+        </div>
+
+        <div data-form-alert hidden></div>
+
+        <div class="mt-5 flex justify-end gap-2">
+          <button type="button" class="btn btn-outline btn-sm" data-review-close>Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Submit review</button>
+        </div>
+      </form>`;
+
+    document.body.append(dialog);
+    dialog.showModal();
+
+    const form = dialog.querySelector('#review-form');
+    const comment = dialog.querySelector('#review-comment');
+    const ratingError = dialog.querySelector('#review-rating-error');
+    const ratingLabel = dialog.querySelector('[data-rating-label]');
+    const stars = [...dialog.querySelectorAll('[data-rating-value]')];
+    const submit = form.querySelector('button[type="submit"]');
+    const labels = ['Select a rating', 'Poor', 'Fair', 'Good', 'Very good', 'Excellent'];
+
+    let rating = 0;
+
+    const paint = () => {
+      stars.forEach((star) => {
+        const value = Number(star.dataset.ratingValue);
+        star.className = `rounded p-0.5 transition hover:scale-105 ${
+          value <= rating
+            ? 'text-amber'
+            : 'text-hairline-strong hover:text-amber'
+        }`;
+        star.setAttribute('aria-checked', String(value === rating));
+      });
+      ratingLabel.textContent = labels[rating];
+      ratingError.hidden = true;
+    };
+
+    stars.forEach((star) => {
+      star.addEventListener('click', () => {
+        rating = Number(star.dataset.ratingValue);
+        paint();
+      });
+    });
+
+    const close = () => {
+      dialog.close();
+      dialog.remove();
+    };
+
+    dialog.querySelectorAll('[data-review-close]').forEach((button) => {
+      button.addEventListener('click', close);
+    });
+
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      close();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearFormErrors(form);
+
+      const valid = validateFields([
+        { input: comment, label: 'Review', required: true, min: 10 },
+      ]);
+
+      if (!rating) {
+        ratingError.textContent = 'Choose a star rating.';
+        ratingError.hidden = false;
+      }
+
+      if (!rating || !valid) return;
+
+      setLoading(submit, true, 'Submitting…');
+
+      try {
+        const data = await apiFetch('/reviews', {
+          method: 'POST',
+          body: {
+            booking_id: Number(booking.id),
+            rating,
+            comment: comment.value.trim(),
+          },
+        });
+
+        booking.review_id = data.review?.id ?? data.review_id ?? true;
+        close();
+        showToast('Thanks! Your review has been published.', 'success');
+        renderTab(tabs.current);
+      } catch (error) {
+        showFormAlert(form, error.message);
+        setLoading(submit, false);
+      }
+    });
+
+    stars[4]?.focus();
+  }
+
+  /* ------------------------------------------------------------- Interactions */
+
+  async function cancelBooking(booking, button) {
+    const confirmed = await confirmDialog({
+      title: 'Cancel this request?',
+      message: `Cancel your ${booking.service_title || 'service'} request with ${
+        booking.provider_name || 'this professional'
+      }? They will be notified, and you can book again at any time.`,
+      confirmLabel: 'Cancel request',
+      cancelLabel: 'Keep booking',
+      danger: true,
+    });
+
+    if (!confirmed) return;
+
+    setLoading(button, true, 'Cancelling…');
+
+    try {
+      const data = await apiFetch(`/bookings/${booking.id}/cancel`, {
+        method: 'PATCH',
+      });
+
+      booking.status = data.booking?.status || 'cancelled';
+      showToast('Your booking request was cancelled.', 'success');
+      renderTab(tabs.current);
+    } catch (error) {
+      showToast(error.message, 'error');
+      setLoading(button, false);
+    }
+  }
+
+  panel.addEventListener('click', (event) => {
+    const target = event.target;
+
+    const goTrigger = target.closest('[data-go-tab]');
+    if (goTrigger) {
+      event.preventDefault();
+      tabs.go(goTrigger.dataset.goTab);
+      return;
+    }
+
+    const filterTrigger = target.closest('[data-booking-filter]');
+    if (filterTrigger) {
+      state.bookingFilter = filterTrigger.dataset.bookingFilter;
+      renderBookings();
+      panel.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    const cancelTrigger = target.closest('[data-cancel-booking]');
+    if (cancelTrigger) {
+      const booking = state.bookings.find(
+        (item) => String(item.id) === cancelTrigger.dataset.cancelBooking,
+      );
+      if (booking) cancelBooking(booking, cancelTrigger);
+      return;
+    }
+
+    const reviewTrigger = target.closest('[data-review-booking]');
+    if (reviewTrigger) {
+      const booking = state.bookings.find(
+        (item) => String(item.id) === reviewTrigger.dataset.reviewBooking,
+      );
+      if (booking) openReviewDialog(booking);
+      return;
+    }
+
+    const retryTrigger = target.closest('[data-retry]');
+    if (retryTrigger) {
+      retryTrigger.disabled = true;
+      loadData().then(() => renderTab(tabs.current));
+    }
+  });
+
+  /* ---------------------------------------------------------------- Rendering */
+
+  function renderTab(tab) {
+    if (!state.user) return;
+
+    panel.setAttribute('aria-busy', 'true');
+
+    if (tab === 'bookings') renderBookings();
+    else if (tab === 'profile') renderProfile();
+    else renderOverview();
+
+    panel.setAttribute('aria-busy', 'false');
+  }
+
+  /* -------------------------------------------------------------------- Load */
+
+  async function loadData() {
+    state.error = null;
+
+    const featuredRequest = apiFetch('/providers?featured=1&limit=2', {
+      auth: false,
+    }).catch(() => ({ providers: [] }));
+
+    try {
+      const [bookingsData, providersData] = await Promise.all([
+        apiFetch('/bookings/me'),
+        featuredRequest,
+      ]);
+
+      state.bookings = bookingsData.bookings || [];
+      state.featured = providersData.providers || [];
+    } catch (error) {
+      state.error = error.message;
+    }
+
+    state.loaded = true;
+  }
+
+  async function load() {
+    let user;
+
+    try {
+      user = await requireRole('customer');
+      if (!user) return;
+    } catch (error) {
+      panel.innerHTML = errorState(error.message);
+      panel.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    state.user = user;
+    hydrateDashboardAccount(user);
+    hydrateSiteUser(user);
+    tabs.start();
+
+    await loadData();
+    renderTab(tabs.current);
+  }
+
+  load();
+</script>

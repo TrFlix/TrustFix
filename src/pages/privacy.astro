@@ -1,0 +1,123 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const sections = [
+  {
+    title: '1. What we collect',
+    body: [
+      'Account details you provide when registering, such as your name, email address, phone number, city and password. Passwords are stored as bcrypt hashes, never as plain text.',
+      'Booking details you submit, including the service requested, preferred date, address and any notes you add.',
+      'Provider profile details, such as experience, skills, service listings and service area.',
+      'Reviews you leave after a completed booking.',
+    ],
+  },
+  {
+    title: '2. How we use it',
+    body: [
+      'To create and secure your account, show relevant services and professionals, process booking requests and keep both parties updated on booking status.',
+      'To display reviews and provider profiles to other users so they can make informed choices.',
+      'To respond to support requests and to keep the platform safe and functional.',
+    ],
+  },
+  {
+    title: '3. Location information',
+    body: [
+      'If you choose “Use my location”, your browser asks for permission and shares an approximate position with the page. That position is used to suggest your city and is not stored on our servers by the location feature.',
+      'You can decline the browser permission and type your city manually at any time.',
+    ],
+  },
+  {
+    title: '4. Sharing',
+    body: [
+      'When you send a booking request, the provider receives the information needed to fulfil it — your name, contact details, service address and booking notes.',
+      'We do not sell personal data. We only share information with service providers involved in your bookings, or where required by law.',
+    ],
+  },
+  {
+    title: '5. Storage and security',
+    body: [
+      'Account and booking data are stored in the TrustFix database. Access is limited to what a user needs for their role: customers see their own bookings, and providers see requests addressed to them.',
+      'No online service can promise perfect security. Choose a strong, unique password and keep your login details private.',
+    ],
+  },
+  {
+    title: '6. Your choices',
+    body: [
+      'You can update your name, phone number and city from your dashboard profile settings.',
+      'You may ask us to delete your account and associated personal data by emailing hello@trustfix.com. Some records may be retained where needed to preserve booking or review integrity.',
+    ],
+  },
+  {
+    title: '7. Cookies and local storage',
+    body: [
+      'TrustFix stores your login token and basic account information in your browser’s local storage so you stay signed in between visits. Clearing site data signs you out.',
+      'We do not use advertising trackers.',
+    ],
+  },
+  {
+    title: '8. Contact',
+    body: [
+      'For privacy questions or requests, email hello@trustfix.com.',
+    ],
+  },
+];
+---
+
+<Layout
+  title="Privacy Policy"
+  description="How TrustFix collects, uses and protects customer and provider information."
+>
+  <section class="border-b border-hairline">
+    <div class="container-x py-14 sm:py-18 lg:py-20">
+      <p class="eyebrow">Legal</p>
+      <h1 class="display-1 mt-4 max-w-3xl">Privacy Policy</h1>
+      <p class="mt-4 text-[13px] text-mute">Last updated: 18 October 2026</p>
+      <p class="lead mt-4 max-w-2xl">
+        This policy explains what information TrustFix collects, why we collect
+        it and the choices you have.
+      </p>
+    </div>
+  </section>
+
+  <section class="section-pad">
+    <div class="container-x grid gap-10 lg:grid-cols-[0.32fr_1fr] lg:gap-16">
+      <nav class="hidden lg:block" aria-label="On this page">
+        <p class="font-mono text-[10px] font-medium tracking-[0.12em] text-mute uppercase">On this page</p>
+        <ol class="mt-4 space-y-2.5">
+          {
+            sections.map((section, index) => (
+              <li>
+                <a href={`#section-${index + 1}`} class="text-[12.5px] leading-5 text-body transition hover:text-teal-deep">
+                  {section.title}
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+
+      <div class="space-y-9">
+        {
+          sections.map((section, index) => (
+            <section id={`section-${index + 1}`} class="scroll-mt-28">
+              <h2 class="text-[15px] font-semibold tracking-[-0.01em] text-ink">{section.title}</h2>
+              <div class="mt-3 space-y-3">
+                {section.body.map((paragraph) => (
+                  <p class="text-[13.5px] leading-7 text-body">{paragraph}</p>
+                ))}
+              </div>
+            </section>
+          ))
+        }
+
+        <div class="rounded-xl border border-hairline bg-surface p-5">
+          <p class="text-[13px] leading-6 text-body">
+            This page is provided for a college mini project and is not legal
+            advice. Privacy questions can be sent to
+            <a href="mailto:hello@trustfix.com" class="font-medium text-teal-deep hover:underline">hello@trustfix.com</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
